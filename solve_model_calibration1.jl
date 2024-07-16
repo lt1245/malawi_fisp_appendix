@@ -1,4 +1,4 @@
-function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parameter_type,out::Int64,moments::Vector{Float64},balanced_share::Float64,foreign_supply_capital::Float64)
+function solve_model_calibration1(prices::Vector{Float64},parameters_tmp::Parameter_type,out::Int64,moments::Vector{Float64},balanced_share::Float64)
 
     if size(prices,1)<3 && balanced_share>0.0 
         error("Prices input wrong sized")
@@ -146,7 +146,7 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 conv = 0;
                 exitflag=4;
             end
-                #println("Conv criterion:", conv, "Max error index:", conv_ind,coeff[conv_ind[2][1],conv_ind[2][2]])
+                #println("Conv criterion:", conv, "Max error index:", conv_ind)
         end
         #end
         if balanced_share>0.0
@@ -228,9 +228,6 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 cash_crop_past_dist = stat_distr[(ns_fine *2 + 1):(ns_fine *3)];
 
                 # Policy functions:
-                c_S_W_fine= zeros(ns_fine,3);
-                c_B_W_fine= zeros(ns_fine,3);
-                c_M_W_fine= zeros(ns_fine,3);
                 Y_W_fine_policy = zeros(ns_fine,3);
                 Y_S_fine = zeros(ns_fine,3);
                 c_S_S_fine= zeros(ns_fine,3);
@@ -294,12 +291,11 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                         end
                     end
                 end
-                matcheck= zeros(ns_fine,12)
-                matcheck[:,1:3]= future_occupation_fine_local;
-                matcheck[:,4:6] = future_asset_S;#s_fine
-                matcheck[:,7:9] = future_asset_C;#s_fine
-                #matcheck[:,6:8] = cons_fine_local
-                #matcheck[:,9:11] = solve_cash_crop_index_B_fine
+                # matcheck= zeros(400,12)
+                # matcheck[:,1:3]= future_occupation_fine_local
+                # matcheck[:,4:5] = s_fine
+                # matcheck[:,6:8] = cons_fine_local
+               #matcheck[:,6:8] = c_S_B_fine - q_S_B_fine
                 # Distribution of current occupations
                 current_distr_store = zeros(3 * ns_fine);
 
@@ -310,22 +306,12 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 exit_cashcrop_to_work = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==1);
                 current_workers = stay_workers + exit_staple_to_work + exit_cashcrop_to_work;
                 # Worker policy functions are easy:
-                c_S_W_fine[:,1] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-                c_S_W_fine[:,2] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-                c_S_W_fine[:,3] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-                c_B_W_fine[:,1] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-                c_B_W_fine[:,2] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-                c_B_W_fine[:,3] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-                c_M_W_fine[:,1] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-                c_M_W_fine[:,2] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-                c_M_W_fine[:,3] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-
-                c_S_worker_sum = sum( c_S_W_fine[:,1].*stay_workers + c_S_W_fine[:,2].*exit_staple_to_work +
-                c_S_W_fine[:,3] .*exit_cashcrop_to_work );
-                c_B_worker_sum = sum(c_B_W_fine[:,1] .*stay_workers +c_B_W_fine[:,2] .*exit_staple_to_work +
-                c_B_W_fine[:,3] .*exit_cashcrop_to_work );
-                c_M_worker_sum = sum(c_M_W_fine[:,1] .*stay_workers +c_M_W_fine[:,2] .*exit_staple_to_work +
-                c_M_W_fine[:,3] .*exit_cashcrop_to_work );
+                c_S_worker_sum = sum((c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ) .*stay_workers +(c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ) .*exit_staple_to_work +
+                (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) .*exit_cashcrop_to_work );
+                c_B_worker_sum = sum((p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ) .*stay_workers +(p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ) .*exit_staple_to_work +
+                (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) .*exit_cashcrop_to_work );
+                c_M_worker_sum = sum((p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ) .*stay_workers +(p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ) .*exit_staple_to_work +
+                (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) .*exit_cashcrop_to_work );
                 urban_labor_supply_sum = sum(current_workers.*labor_prod_fine);
                 transaction_cost_worker_sum = c_S_worker_sum * Q_S;
 
@@ -423,13 +409,12 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 Government_expenditure = balanced_share * p_x * (τ_S * input_staple + τ_B * input_cashcrop);
                 Import_value = p_x * ( input_staple + input_cashcrop);
                 Export_value = p_B * foreign_demand_cash_crop;
-                
+                #Net_Foreign_Factor_Income = R*(copy(asset_supply) - capital_used)
                 #current_account = (Government_expenditure + Net_Foreign_Factor_Income - Import_value+Export_value)
                 current_account_residual = Export_value - Import_value;
-                #Net_Foreign_Factor_Income = -current_account_residual;
-                #foreign_supply_capital = -Net_Foreign_Factor_Income/R;
+                Net_Foreign_Factor_Income = -current_account_residual;
+                foreign_supply_capital = -Net_Foreign_Factor_Income/R;
                 capital_used = copy(asset_supply) + foreign_supply_capital;
-                Net_Foreign_Factor_Income = R*(copy(asset_supply) - capital_used)
                 # if capital_used<0 || labor_used<0
                 #     println("ERROR? Capital_used: ", capital_used, " Labor_used: ", labor_used)
                 # end
@@ -465,9 +450,9 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 #residual[1] = (cash_crop_cons  - prod_cashcrop)/(cash_crop_cons + prod_cashcrop); # -- KAROL ADDED THIS
                 residual_goods[1] = (c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  - prod_cashcrop)/(
                                     c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  + prod_cashcrop);
-                if current_cashcrop_pop <1e-3
-                    residual_goods[1] = 100.0;
-                end
+                #if current_cashcrop_pop <1e-3
+                #    residual_goods[1] = 100.0;
+                #end
                 #println(c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum)
                 #println(foreign_demand_cash_crop)
                 #println(prod_cashcrop)
@@ -477,9 +462,9 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 #residual[2] = (manuf_cons + input_staple + input_cashcrop - prod_manuf)/(manuf_cons + input_staple + input_cashcrop + prod_manuf); # -- KAROL ADDED THIS
                 residual_goods[3] = 0 #No longer needed for the calibration as the foreign_supply_capital offsets capital markets(r - r_new)/(r+r_new);
                 residual_goods[4] = 0;#(w - w_new)/(w+w_new);
-                if current_worker_pop <1e-3
-                    residual_goods[4] = -100.0;
-                end
+                #if current_worker_pop <1e-3
+                 #   residual_goods[4] = -100.0;
+                #end
                 #residual[4] = (labor_demand - labor_used)/(labor_demand + labor_used);
                 #staple_mkt_clr = (sum(c_current_S) + p_x*input_staple - prod_staple)/(sum(c_current_S) + prod_staple + p_x*input_staple) # -- KAROL ADDED THIS
                 #staple_mkt_clr = (sum(c_current_S) - prod_staple)/(sum(c_current_S) + prod_staple) # -- KAROL ADDED THIS
@@ -487,12 +472,12 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                     transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum - prod_staple)/(
                     c_S_worker_sum + c_S_staple_sum + c_S_cashcrop_sum +
                         transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum + prod_staple);# This is the main residual, since other markets are tempered with
-                if prod_staple <1e-3
-                    residual_goods[5] = 100.0;
-                end
+                #if prod_staple <1e-3
+                #    residual_goods[5] = 100.0;
+                #end
 
                 if balanced_share>0.0
-                    residual_goods[6] =  (τ_W - τ_W_new)/(τ_W + τ_W_new)
+                    residual_goods[6] = (τ_W - τ_W_new)/(τ_W + τ_W_new)
                 end
 
                 # if current_staple_pop ==0
@@ -503,7 +488,7 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 + sum( entrants_from_staple_to_cashcrop.*(q_B_B_fine[:,2].==0.0)) + current_staple_pop);
                 rural_pop_only_Bashcrop_printable=(sum(entrants_cashcrop_from_workers.* (land_C_fine[:,1].==1.0)) + sum(incumbents_cashcrop.*(land_C_fine[:,3].==1.0))
                 + sum( entrants_from_staple_to_cashcrop.*(land_C_fine[:,2].==1.0)));
-                #println("Pops: Worker:",current_worker_pop," Staple:",current_staple_pop," Cash crop:",current_cashcrop_pop," Only producing staples", rural_pop_only_staples_printable
+               #println("Pops: Worker:",current_worker_pop," Staple:",current_staple_pop," Cash crop:",current_cashcrop_pop)#" Only producing staples", rural_pop_only_staples_printable
                 #," Only producing cashcrop", rural_pop_only_Bashcrop_printable)
             end
         end
@@ -583,7 +568,7 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 # moment[6]
 
                     program_spending = -p_x * (τ_S * input_staple + τ_B * input_cashcrop)/nominal_GDP;
-                    residual[6] = 0;#(program_spending - G_Y_ratio)/(program_spending + G_Y_ratio);
+                    residual[6] = (program_spending - G_Y_ratio)/(program_spending + G_Y_ratio);#0;
                 # moment[7]
 
                     # share_urban_unemployed = sum((current_workers .* (labor_prod_fine .== parameters_tmp.l_z_low)) ./current_worker_pop);
@@ -1228,17 +1213,8 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 entrants_from_staple_to_cashcrop .*((TC_fine[:,2].<(κ*s_fine[:,1] .- tol)  ).==1) +
                 incumbents_cashcrop .*((TC_fine[:,3].<(κ*s_fine[:,1] .- tol)) .==1) );
                 fraction_cashcrop_suboptimal_model = 1 - unconstrained_cashcrop_producer/current_cashcrop_pop;
-
-                unconstrained_staple_producer = sum(entrants_staple_from_workers .*((p_x * x_S_S_fine[:,1].<(κ*s_fine[:,1] .- tol) ).==1) +
-                exit_cashcrop_to_staple .*((p_x * x_S_S_fine[:,3] .<(κ*s_fine[:,1] .- tol)  ).==1) +
-                incumbents_staple .*((p_x * x_S_S_fine[:,2].<(κ*s_fine[:,1] .- tol)) .==1) );
-                fraction_staple_suboptimal_model = 1 - unconstrained_staple_producer/current_staple_pop;
-
                 residual[12] = (fraction_cashcrop_suboptimal_model - fraction_cashcrop_suboptimal)/(fraction_cashcrop_suboptimal_model + fraction_cashcrop_suboptimal)
                 
-                #Alternative measure for residual 12:
-                fraction_farmers_suboptimal_model = (fraction_staple_suboptimal_model*current_staple_pop + fraction_cashcrop_suboptimal_model*current_cashcrop_pop)/(current_staple_pop + current_cashcrop_pop);
-
                 mean_land_share_to_staples_among_cc_model =(sum(entrants_cashcrop_from_workers .* (land_C_fine[:,1].>0.0).* (1 .- land_C_fine[:,1])) +
                  sum(incumbents_cashcrop.*(land_C_fine[:,3].>0.0).*(1 .- land_C_fine[:,3]))
                 + sum( entrants_from_staple_to_cashcrop.*(land_C_fine[:,2].>0.0).*(1 .- land_C_fine[:,2])))/current_cashcrop_pop;
@@ -1277,7 +1253,7 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                             cashcrop_revenue_income_incumbents_cashcrop .* incumbents_cashcrop)/(current_cashcrop_pop+current_staple_pop);
                 avg_inc_urban = sum(income_worker_stay_workers.*stay_workers .+ income_worker_staple_to_work.*exit_staple_to_work .+ income_worker_cashcrop_to_work.*exit_cashcrop_to_work)/current_worker_pop;
                 #avg_inc_urban = sum(labor_prod_fine.*w.*current_workers)# I think part of the problem is that we take into account the large migration cost - thats not income!
-                residual[14] = (max(0.0,avg_inc_urban/avg_inc_rural) - urban_rural_inc_ratio)/(avg_inc_urban/avg_inc_rural + urban_rural_inc_ratio)
+                residual[14] = 0;#(max(0.0,avg_inc_urban/avg_inc_rural) - urban_rural_inc_ratio)/(avg_inc_urban/avg_inc_rural + urban_rural_inc_ratio)
                 #residual[14] =10*residual[14];
                 #residual[15]=(mean_wealth_urban/mean_wealth_rural-urban_rural_wealth_ratio)/(mean_wealth_urban/mean_wealth_rural + urban_rural_wealth_ratio)
                 #better alternative - backward looking wealth is more accurate:

@@ -620,6 +620,73 @@ function local_parameters(parameters_tmp::Parameter_type)
     s_fine,ns_fine,z,z_W,Phi_z,Phi_z_fine,Phi,Phi_aug,P_kron,P_kron1,P_kron_fine,κ)
 end
 
+function local_parameters_ext(parameters_tmp::Parameter_type, epsilon_r::Float64, cttilde::Float64, ctilde::Float64)
+    δ = parameters_tmp.δ
+    ζ = parameters_tmp.ζ
+    ρ = parameters_tmp.ρ
+    α = parameters_tmp.α
+    σ = parameters_tmp.σ
+    β = parameters_tmp.β
+    ϵ = parameters_tmp.ϵ
+    ψ_S = parameters_tmp.ψ_S
+    ψ_B = parameters_tmp.ψ_B
+    ψ_M = parameters_tmp.ψ_M
+    ϕ_S = parameters_tmp.ϕ_S * exp(-epsilon_r * (cttilde - 0.2))
+    ϕ_B = parameters_tmp.ϕ_B * exp(-epsilon_r * (cttilde - 0.2))
+    c̄_S = parameters_tmp.c̄_S
+    F_W = parameters_tmp.F_W
+    F_S = parameters_tmp.F_S
+    F_B = parameters_tmp.F_B
+    FM_W = parameters_tmp.FM_W
+    FM_S = parameters_tmp.FM_S
+    FM_B = parameters_tmp.FM_B
+    Q_S = parameters_tmp.Q_S
+    p_x = parameters_tmp.p_x
+    τ_S = parameters_tmp.τ_S
+    τ_B = parameters_tmp.τ_B
+    a_D = parameters_tmp.a_D
+    b_D = parameters_tmp.b_D
+    K_a = parameters_tmp.K_a
+    K_b = parameters_tmp.K_b
+    γ = parameters_tmp.γ
+    A_W = parameters_tmp.A_W
+    ρ_S = parameters_tmp.ρ_S
+    ρ_SW = parameters_tmp.ρ_SW
+    σ_S = parameters_tmp.σ_S
+    ρ_W = parameters_tmp.ρ_W
+    σ_W = parameters_tmp.σ_W
+    n = parameters_tmp.n
+    n_fine = parameters_tmp.n_fine
+    C_grid_fine_no = parameters_tmp.C_grid_fine_no
+    agrid = parameters_tmp.agrid
+    agrid_fine = parameters_tmp.agrid_fine
+    C_grid_fine = parameters_tmp.C_grid_fine
+    a_min = parameters_tmp.a_min
+    a_max = parameters_tmp.a_max
+    spliorder = parameters_tmp.spliorder
+    fspace_a = parameters_tmp.fspace_a
+    fspace_a_fine = parameters_tmp.fspace_a_fine
+    fspace_C_fine = parameters_tmp.fspace_C_fine
+    s = parameters_tmp.s
+    ns = parameters_tmp.ns
+    s_fine = parameters_tmp.s_fine
+    ns_fine = parameters_tmp.ns_fine
+    z = parameters_tmp.z
+    z_W = parameters_tmp.z_W
+    #l_z = parameters_tmp.l_z;
+    Phi_z = parameters_tmp.Phi_z
+    Phi_z_fine = parameters_tmp.Phi_z_fine
+    Phi = parameters_tmp.Phi
+    Phi_aug = parameters_tmp.Phi_aug
+    P_kron = parameters_tmp.P_kron
+    P_kron1 = parameters_tmp.P_kron1
+    P_kron_fine = parameters_tmp.P_kron_fine
+    κ = parameters_tmp.κ
+    return (δ, ζ, ρ, α, σ, β, ϵ, ψ_S, ψ_B, ψ_M, ϕ_S, ϕ_B, c̄_S, F_W, F_S, F_B, FM_W, FM_S, FM_B, Q_S, p_x, τ_S, τ_B, a_D, b_D, K_a, K_b, γ, A_W,
+        ρ_S, ρ_SW, σ_S, ρ_W, σ_W, n, n_fine, agrid, agrid_fine, a_min, a_max, spliorder, fspace_a, fspace_a_fine, fspace_C_fine, C_grid_fine_no, C_grid_fine, s, ns,
+        s_fine, ns_fine, z, z_W, Phi_z, Phi_z_fine, Phi, Phi_aug, P_kron, P_kron1, P_kron_fine, κ)
+end
+
 function price_reshaper(prices::Array{Float64,1},δ::Float64,ϵ::Float64,
     ψ_S::Float64,ψ_B::Float64,ψ_M::Float64,p_x::Float64,τ_S::Float64,
     τ_B::Float64,α::Float64,balanced_share::Float64)
@@ -1076,9 +1143,9 @@ function income_creator(s::Array{Float64,2},ns::Int64,
 
             (coeff_λ_2_s_tmp,V_temp) = goldenx(λ_2_staple_residual,ones_agrid_fine,(1 + Q_S) *ones_agrid_fine,tol,ϕ_S,ζ,τ_S,p_x,
                 p_B,p_M,ϕ_B,c̄_S,Q_S,z,ϵ,ψ_S,ψ_B,ψ_M,C_grid_fine,z_index);
-            if sum(V_temp)>tol
-                println("Problem with the intermediate case")
-            end
+            #if sum(V_temp)<tol
+            #    println("Problem with the intermediate case") - deleted because we take care of these issues from lines 1225
+            #end
             θ_index_start = (z_index-1)*n[1] + 1;
             θ_index_end = z_index*n[1];
             labor_shock_same_index= convert(Int64,ns/no_labor_shock);
@@ -1377,7 +1444,7 @@ function income_creator_no_approx(s::Array{Float64,2},ns::Int64,
 
     #2) Specialize in staple crop:
     # Exactly the same problem as before, so just use function staples_objects
-<
+
     #π_possible[:,1] = π_B_only_B;
     #x_SC_possible[:,1] .= 0;
     #x_BC_possible[:,1] = x_B;
@@ -1486,33 +1553,33 @@ function income_creator_no_approx(s::Array{Float64,2},ns::Int64,
     C_max_mat[:,2] =C_max_constrained
     C_min_mat[:,2] =C_min_constrained
 
-#C = s_fine[:,1]/2 .+ a_min;
-#    @btime Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
-#        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,s_fine,q_S_c1_fine,
-#        q_S_c2_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
-#C = s_fine[:,1]/2 .+ a_min;
-#Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
-#        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine,
-#        x_S_c2_fine,s_fine,q_S_c1_fine,q_S_c2_fine,q_S_staples_fine,
-#        c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
+    #C = s_fine[:,1]/2 .+ a_min;
+    #    @btime Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
+    #        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,s_fine,q_S_c1_fine,
+    #        q_S_c2_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
+    #C = s_fine[:,1]/2 .+ a_min;
+    #Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
+    #        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine,
+    #        x_S_c2_fine,s_fine,q_S_c1_fine,q_S_c2_fine,q_S_staples_fine,
+    #        c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
 
-#@btime  (c_S_B,c_B_C,c_M_B,x_SC,x_BC,land_C,λ_2,P_B,Y_B,q_S_C,q_B_B,solve_cash_crop_index_B,solve_staple_index_B) = cashcrop_objects(C,coeff_c_S_cashcrop_residual_unconstrained_fine,
-#        coeff_x_S_cashcrop_residual_unconstrained_fine,coeff_c_S_cashcrop_residual_constrained_fine,θ_fine,
-#         fspace_a_fine,c_S_approx_cashcrop,x_S_approx_cashcrop,s_fine,ϕ_S,ζ,τ_S,p_x,p_B,
-#             p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,
-#             a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-#             c_s_residual,c_s_constrained,c_s_approx_staples,coeff_λ_2_s_fine,
-#             staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
-#             y_c3a_fine,labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
-#             x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,
-#             q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
-#             x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,
-#             c_S_mat_fine,c_B_mat_fine,
-#             c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,
-#             λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,
-#             y_bar_c3c_constraint_mat_fine,
-#             q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,
-#             x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine)
+    #@btime  (c_S_B,c_B_C,c_M_B,x_SC,x_BC,land_C,λ_2,P_B,Y_B,q_S_C,q_B_B,solve_cash_crop_index_B,solve_staple_index_B) = cashcrop_objects(C,coeff_c_S_cashcrop_residual_unconstrained_fine,
+    #        coeff_x_S_cashcrop_residual_unconstrained_fine,coeff_c_S_cashcrop_residual_constrained_fine,θ_fine,
+    #         fspace_a_fine,c_S_approx_cashcrop,x_S_approx_cashcrop,s_fine,ϕ_S,ζ,τ_S,p_x,p_B,
+    #             p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,
+    #             a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+    #             c_s_residual,c_s_constrained,c_s_approx_staples,coeff_λ_2_s_fine,
+    #             staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
+    #             y_c3a_fine,labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
+    #             x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,
+    #             q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
+    #             x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,
+    #             c_S_mat_fine,c_B_mat_fine,
+    #             c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,
+    #             λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,
+    #             y_bar_c3c_constraint_mat_fine,
+    #             q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,
+    #             x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine)
 
     return (θ,labor_prod,tol,P_W,Y_W,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,
             x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
@@ -1523,6 +1590,526 @@ function income_creator_no_approx(s::Array{Float64,2},ns::Int64,
             c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,TC_mat,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
             C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
             x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine)
+end
+
+function income_creator_ext(s::Array{Float64,2}, ns::Int64,
+    z::Array{Float64,1}, z_W::Array{Float64,1}, ϕ_S::Float64, ζ::Float64, τ_S::Float64, p_x::Float64,
+    p_B::Float64, p_M::Float64, ϕ_B::Float64, τ_B::Float64, ρ::Float64, w::Float64, r::Float64,
+    c̄_S::Float64, a_min::Float64, a_max::Float64, γ::Float64, n::Array{Int64,1}, κ::Float64, Q_S::Float64,
+    ϵ::Float64, ψ_S::Float64, ψ_B::Float64, ψ_M::Float64, agrid_fine::Array{Float64,1}, fspace_C_fine::Dict{Symbol,Any}, agrid::Array{Float64,1}, epsilon_u::Float64, cttilde::Float64, ctilde::Float64, tol::Float64=1e-8)
+    # Create the productivity of labor and production
+    no_labor_shock = size(z_W)[1]
+    no_prod_shock = convert(Int64, n[2] / no_labor_shock)
+    θ = z[((convert(Array{Int64,1}, s[:, 2]).-1).%no_prod_shock.+1)]
+    labor_penalty_ext = exp(-epsilon_u * (cttilde - 0.2))
+    labor_prod = z_W[convert(Array{Int64,1}, floor.((s[:, 2] / no_prod_shock .- 0.01) .+ 1))]*labor_penalty_ext
+    ones_tmp = ones(ns)
+    # Workers:
+    P_W = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_W = (1 + Q_S) * c̄_S .- w * labor_prod#was: Y_W = (1 + Q_S) * c̄_S .- w*labor_prod; # consumption is added later as P_W * C
+    # Staple farmer [22/03/2022 UPDATED LASZLO:]
+    q_S_staples = zeros(ns, 3)
+    c_S_staples = zeros(ns, 3)
+    c_B_staples = zeros(ns, 3)
+    c_M_staples = zeros(ns, 3)
+    P_S_staples = zeros(ns, 3)
+    x_S_staples = zeros(ns, 3)
+    λ_2_S_staples = zeros(ns, 3)
+    unfeasible_mat = zeros(ns, 3)
+    Y_S_potential = zeros(ns, 3)
+    #Case 1: more than enough production and hence no transaction cost:
+    x_S_bar_c1 = ((ϕ_S * ζ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_S_c1 = min.(κ .* s[:, 1] ./ ((1 + τ_S) * p_x), x_S_bar_c1)
+    π_S_c1 = ϕ_S * θ .* x_S_c1 .^ ζ - ((1 + τ_S) * p_x) * x_S_c1
+    λ_S_c1 = ϕ_S .* θ .* ζ ./ (p_x .* (1 + τ_S)) .* x_S_c1 .^ (ζ - 1) .- 1
+    P_S_c1 = (ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    q_S_c1 = ϕ_S * θ .* x_S_c1 .^ ζ
+    Y_S_c1 = -π_S_c1 #was: Y_S_c1 = c̄_S .- π_S_c1;
+    #Case 2: Impossibly to produce enough food:
+    x_S_bar_c2 = ((ϕ_S * (1 + Q_S) * ζ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_S_c2 = min.(κ .* s[:, 1] ./ ((1 + τ_S) * p_x), x_S_bar_c2)
+    q_S_c2 = ϕ_S * θ .* x_S_c2 .^ ζ
+    fertilizer_exp = ((1 + τ_S) * p_x) * x_S_c2
+    # λ_S_c2 =   ϕ_S *(1 + Q_S) .* θ .*ζ./p_x .* x_S_c2.^(ζ -1) .- (1 + τ_S); --- KAROL: I THINK THIS IS SLIGHLY WRONG TOO, CORRECTION BELOW (but this is subject to comment on OL):
+    λ_S_c2 = ϕ_S * (1 + Q_S) .* θ .* ζ ./ (p_x .* (1 + τ_S)) .* x_S_c2 .^ (ζ - 1) .- 1
+
+    P_S_c2 = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_S_c2 = fertilizer_exp # Might have to pay transaction cost even on parts of c̄_S
+
+    #if sum(any.(-a_min .+ q_S_c2 .- fertilizer_exp .- c̄_S .<0))>0 ---Updated cbar_creator
+    #    cbar_violated=1
+    #else
+    #    cbar_violated=0
+    #end
+    cbar_violated = 0
+    # handle the c_bar error here. if q_S_c2 - fertilizer_exp  + a_min < bar_c , break.
+
+    #Case 3: Possible to produce enough food, but distorts the production [NOT UPDATED!]
+
+    #c_s_solve_mat = zeros(size(agrid_fine)[1],ns); # Stores the consumption solutions at the double grid.
+    # Each column is for different θ, row is for different C. Solution must be for each C
+    # Each column is for different θ, row is for different C. Solution must be for each C
+    ones_agrid_fine = ones(size(agrid_fine))
+    Phi_a_fine = funbase(fspace_C_fine, agrid_fine)
+    coeff_λ_2_s = zeros(size(agrid_fine)[1], ns)
+    V_temp_staple_residual = zeros(size(agrid_fine)[1], ns)
+    C_grid_fine = copy(agrid_fine)
+    exit_flag_mat = zeros(size(agrid_fine)[1], ns)
+    TC_S_c3_constrained = zeros(ns)
+    x_S_c3_constrained = zeros(ns)
+    q_S_c3_constrained = zeros(ns)
+    c_S_c3_constrained = zeros(ns)
+
+    if cbar_violated == 0
+        for z_index = 1:(convert(Int64, n[2] / no_labor_shock))
+
+            (coeff_λ_2_s_tmp, V_temp) = goldenx(λ_2_staple_residual, ones_agrid_fine, (1 + Q_S) * ones_agrid_fine, tol, ϕ_S, ζ, τ_S, p_x,
+                p_B, p_M, ϕ_B, c̄_S, Q_S, z, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, z_index)
+            #if sum(V_temp)<tol
+            #    println("Problem with the intermediate case") - deleted because we take care of these issues from lines 1225
+            #end
+            θ_index_start = (z_index - 1) * n[1] + 1
+            θ_index_end = z_index * n[1]
+            labor_shock_same_index = convert(Int64, ns / no_labor_shock)
+            for l_index = 0:(no_labor_shock-1)
+                coeff_λ_2_s[:, (labor_shock_same_index*l_index+θ_index_start):(labor_shock_same_index*l_index+θ_index_end)] .= coeff_λ_2_s_tmp
+                V_temp_staple_residual[:, (labor_shock_same_index*l_index+θ_index_start):(labor_shock_same_index*l_index+θ_index_end)] .= V_temp
+            end
+            for a_index = 1:n[1]
+                # Constrained case: bounds
+                TC_S_constrained_tmp = κ * agrid[a_index]
+                x_S_constrained_tmp = TC_S_constrained_tmp / ((1 + τ_S) * p_x)
+                q_S_constrained_tmp = ϕ_S * x_S_constrained_tmp .^ ζ .* z[z_index]
+                condition = (((q_S_constrained_tmp .- c̄_S) ./ ψ_S .^ ϵ ./ C_grid_fine) .^ ((1 - ϵ) / ϵ) .- ψ_S .^ ϵ)
+                exitflag_tmp = 0 * copy(ones_agrid_fine)
+                exitflag_tmp[condition.<0] .= -1
+                for l_index = 0:(no_labor_shock-1)
+                    exit_flag_mat[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= exitflag_tmp
+                    TC_S_c3_constrained[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = TC_S_constrained_tmp
+                    x_S_c3_constrained[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = x_S_constrained_tmp
+                    q_S_c3_constrained[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = q_S_constrained_tmp
+                    c_S_c3_constrained[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = q_S_constrained_tmp
+                end
+            end
+            #coeff_λ_2_s[:,θ_index] = Phi_a_fine\c_s_solve_mat[:,θ_index];
+            # for this simple case, this isnt needed as c_s_solve_mat = coeff_λ_2_s!!!
+        end
+    end #end if cbarviolated
+
+    # Create functions, use staples_objects later.
+
+    # Cash crop farmer
+    #π_possible = zeros(ns,3);
+    #x_SC_possible  = zeros(ns,3);
+    #x_BC_possible = zeros(ns,3);
+    #labor_allocated_possible = zeros(ns,3);
+    #λ_possible = zeros(ns,3);
+
+    #1) Specialize in cash crop: [24/03/2022 UPDATED LASZLO:]
+    x_B_bar_c1 = ((p_B * ϕ_B * ζ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_B_c1 = min.(κ .* s[:, 1] ./ p_x ./ (1 + τ_B), x_B_bar_c1)
+    q_B_c1 = ϕ_B * θ .* x_B_c1 .^ ζ
+    π_B_only_B_c1 = p_B * q_B_c1 - ((1 + τ_B) * p_x) * x_B_c1
+    #λ_B_only_B_c1_tmp =   p_B * ϕ_B .* θ .*ζ./p_x .* x_B_c1.^(ζ -1) ./ (1 + τ_B) .- 1;
+    λ_B_only_B_c1 = max.(p_B * ϕ_B .* θ .* ζ .* (κ .* s[:, 1]) .^ (ζ - 1) ./ (p_x * (1 + τ_B)) .^ ζ .- 1, 0.0)
+    P_B_c1 = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_B_c1 = -π_B_only_B_c1 #was: Y_B_c1 = (1 + Q_S) * c̄_S .- π_B_only_B_c1;
+
+    #2) Specialize in staple crop:
+    # Exactly the same problem as before, so just use function staples_objects
+
+    #π_possible[:,1] = π_B_only_B;
+    #x_SC_possible[:,1] .= 0;
+    #x_BC_possible[:,1] = x_B;
+    #labor_allocated_possible[:,1] .= 1.0;
+    #λ_possible[:,1] = λ_B_only_B;
+
+    #3) Internal solution - produces both staples and cash crop
+    #3a) q_S>c_S, hence no transaction cost paid [24/03/2022 UPDATED LASZLO:]
+    labor_allocated_interior_c3a = (p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) / ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + (ϕ_S * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ)))
+    x_SC_interior_c3a = ((ϕ_S * ζ * (1 .- labor_allocated_interior_c3a) .^ ρ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_BC_interior_c3a = ((p_B * ϕ_B * ζ * (labor_allocated_interior_c3a) .^ ρ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    total_cost_c3a = p_x * ((1 + τ_S) * x_SC_interior_c3a + (1 + τ_B) * x_BC_interior_c3a)
+    λ_B_interior_c3a = ζ * θ ./ (κ .* s[:, 1]) .^ (1 - ζ) .* ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + (ϕ_S * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ))) .^ (1 - ρ - ζ) ./ (p_x * (1 + τ_S) * (1 + τ_B)) .^ ζ .- 1
+    λ_B_interior_c3a = max.(λ_B_interior_c3a, 0.0)
+    Lagrange_factor = (1.0 .+ λ_B_interior_c3a) .^ (1 / (ζ - 1))
+    #x_tot_interior_c3a = (1+τ_S).*x_SC_interior_c3a .+ (1+τ_B).*x_BC_interior_c3a
+    x_SC_interior_c3a = x_SC_interior_c3a .* Lagrange_factor
+    x_BC_interior_c3a = x_BC_interior_c3a .* Lagrange_factor
+    total_cost_c3a = total_cost_c3a .* Lagrange_factor
+    q_S_c3a = ϕ_S * θ .* x_SC_interior_c3a .^ ζ .* (1.0 .- labor_allocated_interior_c3a) .^ ρ
+    q_B_c3a = ϕ_B * θ .* x_BC_interior_c3a .^ ζ .* labor_allocated_interior_c3a .^ ρ
+    π_B_interior_c3a = q_S_c3a + p_B * q_B_c3a - total_cost_c3a
+    P_B_c3a = (ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_B_c3a = -π_B_interior_c3a #was: Y_B_c3a = c̄_S.-π_B_interior_c3a
+
+
+    #3b) q_S<c_S, hence transaction cost is always paid marginally [24/03/2022 UPDATED LASZLO:]
+    labor_allocated_interior_c3b = (p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) / ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + ((ϕ_S * (1 + Q_S)) * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ)))
+    x_SC_interior_c3b = (((ϕ_S * (1 + Q_S)) * ζ * (1 .- labor_allocated_interior_c3b) .^ ρ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_BC_interior_c3b = ((p_B * ϕ_B * ζ * (labor_allocated_interior_c3b) .^ ρ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    total_cost_c3b = p_x * ((1 + τ_S) * x_SC_interior_c3b + (1 + τ_B) * x_BC_interior_c3b)
+    λ_B_interior_c3b = ζ * θ ./ (κ .* s[:, 1]) .^ (1 - ζ) .* ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + ((ϕ_S * (1 + Q_S)) * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ))) .^ (1 - ρ - ζ) ./ (p_x * (1 + τ_S) * (1 + τ_B)) .^ ζ .- 1
+    λ_B_interior_c3b = max.(λ_B_interior_c3b, 0.0)
+    Lagrange_factor = (1.0 .+ λ_B_interior_c3b) .^ (1 / (ζ - 1))
+    x_SC_interior_c3b = x_SC_interior_c3b .* Lagrange_factor
+    x_BC_interior_c3b = x_BC_interior_c3b .* Lagrange_factor
+    total_cost_c3b = total_cost_c3b .* Lagrange_factor
+    q_S_c3b = ϕ_S * θ .* x_SC_interior_c3b .^ ζ .* (1.0 .- labor_allocated_interior_c3b) .^ ρ
+    q_B_c3b = ϕ_B * θ .* x_BC_interior_c3b .^ ζ .* labor_allocated_interior_c3b .^ ρ
+    π_B_interior_c3b = p_B * q_B_c3b - total_cost_c3b
+    Y_B_c3b = -π_B_interior_c3b # market income for the csah crop producer
+    P_B_c3b = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+
+    #3c) q_S=c_S, hence transaction cost is not paid, but production is distorted, see functions above [08/03/2022 NOT FINISHED - KAROL:]
+    coeff_λ_2_cashcrop_residual_unconstrained = zeros(size(agrid_fine)[1], ns)
+    coeff_λ_2_cashcrop_residual_constrained = zeros(size(agrid_fine)[1], ns)
+    V_temp_cashcrop_residual_unconstrained = zeros(size(agrid_fine)[1], ns)
+    V_temp_cashcrop_residual_constrained = zeros(size(agrid_fine)[1], ns)
+    #    z_index = 1
+    #    c_S_cashcrop_residual_unconstrained((c̄_S+tol) * ones_agrid_fine,ϕ_S,ζ,
+    #    τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,z,ϵ,ψ_S,ψ_B,ψ_M,C_grid_fine,z_index,ones_agrid_fine,agrid_fine,tol,1)
+    for z_index = 1:(convert(Int64, n[2] / no_labor_shock))
+        (coeff_λ_2_cashcrop_residual_unconstrained_tmp, V_temp) = goldenx(λ_2_residual_unconstrained, ones_agrid_fine, (1 + Q_S) * ones_agrid_fine, tol, ϕ_S, ζ, τ_S, p_x, p_B, p_M, ϕ_B, τ_B, c̄_S, Q_S, z, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, z_index, ρ)
+
+        θ_index_start = (z_index - 1) * n[1] + 1
+        θ_index_end = z_index * n[1]
+        labor_shock_same_index = convert(Int64, ns / no_labor_shock)
+        for l_index = 0:(no_labor_shock-1)
+            coeff_λ_2_cashcrop_residual_unconstrained[:, (labor_shock_same_index*l_index+θ_index_start):(labor_shock_same_index*l_index+θ_index_end)] .= coeff_λ_2_cashcrop_residual_unconstrained_tmp
+            V_temp_cashcrop_residual_unconstrained[:, (labor_shock_same_index*l_index+θ_index_start):(labor_shock_same_index*l_index+θ_index_end)] .= V_temp
+        end
+        #unconstrained ends, constrained begins:
+        for a_index = 1:n[1]
+            (coeff_λ_2_cashcrop_residual_constrained_tmp, V_temp) = goldenx(λ_2_residual_constrained, ones_agrid_fine, (1 + Q_S) * ones_agrid_fine, tol, ϕ_S, ζ, τ_S, p_x, p_B, p_M, ϕ_B, τ_B, c̄_S, Q_S, z, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, z_index, agrid, a_index, κ, ρ)
+            for l_index = 0:(no_labor_shock-1)
+                coeff_λ_2_cashcrop_residual_constrained[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= coeff_λ_2_cashcrop_residual_constrained_tmp
+                V_temp_cashcrop_residual_constrained[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= V_temp
+            end
+        end
+    end
+    # Initialization needed for the functions - better do it once here:
+    c_S_mat = zeros(ns, 5)
+    c_B_mat = zeros(ns, 5)
+    c_M_mat = zeros(ns, 5)
+    x_S_mat = zeros(ns, 5)
+    x_B_mat = zeros(ns, 5)
+    q_S_mat = zeros(ns, 5)
+    q_B_mat = zeros(ns, 5)
+    land_B_mat = zeros(ns, 5)
+    λ_2_mat = zeros(ns, 5)
+    P_B_mat = zeros(ns, 5)
+    feasibility_mat = zeros(ns, 5)
+    Y_B_mat = zeros(ns, 5)
+    TC_mat = zeros(ns, 5)
+    # Initialization needed for the constrained case of 3c functions - better do it once here:
+
+    x_S_mat_3c = zeros(ns, 2)
+    x_B_mat_3c = zeros(ns, 2)
+    land_B_mat_3c = zeros(ns, 2)
+    λ_2_mat_3c = zeros(ns, 2)
+    TC_mat_3c = zeros(ns, 2)
+    # Get consumption bounds
+    C_grid_fine_mat = repeat(C_grid_fine, 1, ns)
+    C_max_unconstrained = maximum(C_grid_fine_mat .* (V_temp_cashcrop_residual_unconstrained .> -tol), dims=1)[:] .+ a_min
+    C_max_constrained = maximum(C_grid_fine_mat .* (V_temp_cashcrop_residual_constrained .> -tol), dims=1)[:] .+ a_min
+    C_max_staple = maximum(C_grid_fine_mat .* (V_temp_staple_residual .> -tol), dims=1)[:] .+ a_min
+    C_max_staple_constrained = maximum(C_grid_fine_mat .* (exit_flag_mat .== 0), dims=1)[:]
+    C_min_staple_constrained = a_min * ones_tmp
+    tmp = zeros(Int64, ns)
+    tmp1 = zeros(Int64, ns)
+    tmp2 = zeros(Int64, ns)
+    for ii = 1:ns
+
+        if isnothing(findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_unconstrained.>-tol))[:, ii]))
+            tmp[ii] = 1
+        else
+            tmp[ii] = findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_unconstrained.>-tol))[:, ii])
+        end
+
+        if isnothing(findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_constrained.>-tol))[:, ii]))
+            tmp1[ii] = 1
+        else
+            tmp1[ii] = findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_constrained.>-tol))[:, ii])
+        end
+        if isnothing(findfirst(myCondition, (C_grid_fine_mat.*(V_temp_staple_residual.>-tol))[:, ii]))
+            tmp2[ii] = 1
+        else
+            tmp2[ii] = findfirst(myCondition, (C_grid_fine_mat.*(V_temp_staple_residual.>-tol))[:, ii])
+        end
+    end
+    C_min_unconstrained = C_grid_fine[tmp]
+    C_min_constrained = C_grid_fine[tmp1]
+    C_min_staple = C_grid_fine[tmp2]
+    C_max_mat = zeros(ns, 2)
+    C_min_mat = zeros(ns, 2)
+    C_max_mat[:, 1] = C_max_unconstrained
+    C_max_mat[:, 2] = C_max_constrained
+    C_min_mat[:, 1] = C_min_unconstrained
+    C_min_mat[:, 2] = C_min_constrained
+
+    return (θ, labor_prod, tol, P_W, Y_W, coeff_λ_2_cashcrop_residual_unconstrained, coeff_λ_2_cashcrop_residual_constrained,
+        x_B_c1, π_B_only_B_c1, λ_B_only_B_c1, P_B_c1, Y_B_c1,
+        coeff_λ_2_s, P_S_c1, P_S_c2, Y_S_c1, Y_S_c2, x_S_c1, x_S_c2, labor_allocated_interior_c3a,
+        λ_B_interior_c3a, x_SC_interior_c3a, x_BC_interior_c3a, Y_B_c3a, P_B_c3a, P_B_c3b, q_S_c1, q_S_c2, q_B_c1, q_S_c3a, q_B_c3a, q_S_c3b, q_B_c3b,
+        x_SC_interior_c3b, x_BC_interior_c3b, labor_allocated_interior_c3b, Y_B_c3b, c_S_mat, c_B_mat,
+        c_M_mat, x_S_mat, x_B_mat, q_S_mat, q_B_mat, land_B_mat, λ_2_mat, P_B_mat, Y_B_mat, feasibility_mat, C_max_mat, C_min_mat, q_S_staples, c_S_staples, c_B_staples,
+        c_M_staples, P_S_staples, x_S_staples, λ_2_S_staples, unfeasible_mat, Y_S_potential, C_max_unconstrained, C_max_constrained, C_min_unconstrained, C_min_constrained, TC_mat,
+        C_max_staple, C_min_staple, C_max_staple_constrained, C_min_staple_constrained, TC_S_c3_constrained, x_S_c3_constrained, q_S_c3_constrained, c_S_c3_constrained, cbar_violated,
+        x_S_mat_3c, x_B_mat_3c, land_B_mat_3c, λ_2_mat_3c, TC_mat_3c)
+end
+function income_creator_no_approx_ext(s::Array{Float64,2}, ns::Int64,
+    z::Array{Float64,1}, z_W::Array{Float64,1}, ϕ_S::Float64, ζ::Float64, τ_S::Float64, p_x::Float64,
+    p_B::Float64, p_M::Float64, ϕ_B::Float64, τ_B::Float64, ρ::Float64, w::Float64, r::Float64,
+    c̄_S::Float64, a_min::Float64, a_max::Float64, γ::Float64, n::Array{Int64,1}, κ::Float64, Q_S::Float64,
+    ϵ::Float64, ψ_S::Float64, ψ_B::Float64, ψ_M::Float64,
+    coeff_λ_2_cashcrop_residual_unconstrained::Array{Float64,2},
+    coeff_λ_2_cashcrop_residual_constrained::Array{Float64,2},
+    C_max_unconstrained::Array{Float64,1}, C_max_constrained::Array{Float64,1}, C_min_unconstrained::Array{Float64,1},
+    C_min_constrained::Array{Float64,1},
+    coeff_λ_2_s::Array{Float64,2}, agrid_fine::Array{Float64,1}, fspace_C_fine::Dict{Symbol,Any}, C_max_staple::Array{Float64,1},
+    C_min_staple::Array{Float64,1}, C_max_staple_constrained::Array{Float64,1},
+    C_min_staple_constrained::Array{Float64,1}, TC_S_c3_constrained::Array{Float64,1},
+    x_S_c3_constrained::Array{Float64,1}, q_S_c3_constrained::Array{Float64,1}, c_S_c3_constrained::Array{Float64,1}, epsilon_u::Float64, cttilde::Float64, ctilde::Float64, tol::Float64=1e-8)
+    # Create the productivity of labor and production
+    no_labor_shock = size(z_W)[1]
+    no_prod_shock = convert(Int64, n[2] / no_labor_shock)
+    θ = z[((convert(Array{Int64,1}, s[:, 2]).-1).%no_prod_shock.+1)]
+    labor_penalty_ext = exp(-epsilon_u * (cttilde - 0.2))
+    labor_prod = z_W[convert(Array{Int64,1}, floor.((s[:, 2] / no_prod_shock .- 0.01) .+ 1))] * labor_penalty_ext
+    ones_tmp = ones(ns)
+    # Workers:
+    P_W = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_W = (1 + Q_S) * c̄_S .- w * labor_prod #was: Y_W = (1 + Q_S) * c̄_S .- w*labor_prod; # consumption is added later as P_W * C
+    # Staple farmer
+    q_S_staples = zeros(ns, 3)
+    c_S_staples = zeros(ns, 3)
+    c_B_staples = zeros(ns, 3)
+    c_M_staples = zeros(ns, 3)
+    P_S_staples = zeros(ns, 3)
+    x_S_staples = zeros(ns, 3)
+    λ_2_S_staples = zeros(ns, 3)
+    unfeasible_mat = zeros(ns, 3)
+    Y_S_potential = zeros(ns, 3)
+    #Case 1: more than enough production and hence no transaction cost:
+    x_S_bar_c1 = ((ϕ_S * ζ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_S_c1 = min.(κ .* s[:, 1] ./ ((1 + τ_S) * p_x), x_S_bar_c1)
+    π_S_c1 = ϕ_S * θ .* x_S_c1 .^ ζ - ((1 + τ_S) * p_x) * x_S_c1
+    λ_S_c1 = ϕ_S .* θ .* ζ ./ (p_x .* (1 + τ_S)) .* x_S_c1 .^ (ζ - 1) .- 1
+    P_S_c1 = (ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    q_S_c1 = ϕ_S * θ .* x_S_c1 .^ ζ
+    Y_S_c1 = -π_S_c1 # was: Y_S_c1 = c̄_S .- π_S_c1;
+    #Case 2: Impossibly to produce enough food:
+    x_S_bar_c2 = ((ϕ_S * (1 + Q_S) * ζ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_S_c2 = min.(κ .* s[:, 1] ./ ((1 + τ_S) * p_x), x_S_bar_c2)
+    q_S_c2 = ϕ_S * θ .* x_S_c2 .^ ζ
+    fertilizer_exp = ((1 + τ_S) * p_x) * x_S_c2
+    # λ_S_c2 =   ϕ_S *(1 + Q_S) .* θ .*ζ./p_x .* x_S_c2.^(ζ -1) .- (1 + τ_S); --- KAROL: I THINK THIS IS SLIGHLY WRONG TOO, CORRECTION BELOW (but this is subject to comment on OL):
+    λ_S_c2 = ϕ_S * (1 + Q_S) .* θ .* ζ ./ (p_x .* (1 + τ_S)) .* x_S_c2 .^ (ζ - 1) .- 1
+
+    P_S_c2 = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_S_c2 = fertilizer_exp # Might have to pay transaction cost even on parts of c̄_S
+    #Case 3: Possible to produce enough food, but distorts the production
+
+    #c_s_solve_mat = zeros(size(agrid_fine)[1],ns); # Stores the consumption solutions at the double grid.
+    # Each column is for different θ, row is for different C. Solution must be for each C
+    ones_agrid_fine = ones(size(agrid_fine))
+    C_grid_fine = copy(agrid_fine)
+    exit_flag_mat_fine = zeros(size(agrid_fine)[1], ns)
+    TC_S_c3_constrained_fine = zeros(ns)
+    x_S_c3_constrained_fine = zeros(ns)
+    q_S_c3_constrained_fine = zeros(ns)
+    c_S_c3_constrained_fine = zeros(ns)
+    for z_index = 1:(convert(Int64, n[2] / no_labor_shock))
+        labor_shock_same_index = convert(Int64, ns / no_labor_shock)
+        for a_index = 1:n[1]
+            # Constrained case: bounds
+            TC_S_constrained_tmp = κ * agrid_fine[a_index]
+            x_S_constrained_tmp = TC_S_constrained_tmp / ((1 + τ_S) * p_x)
+            q_S_constrained_tmp = ϕ_S * x_S_constrained_tmp .^ ζ .* z[z_index]
+            condition = (((q_S_constrained_tmp .- c̄_S) ./ ψ_S .^ ϵ ./ C_grid_fine) .^ ((1 - ϵ) / ϵ) .- ψ_S .^ ϵ)
+            exitflag_tmp_fine = 0 * copy(ones_agrid_fine)
+            exitflag_tmp_fine[condition.<0] .= -1
+            for l_index = 0:(no_labor_shock-1)
+                exit_flag_mat_fine[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= exitflag_tmp_fine
+                TC_S_c3_constrained_fine[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = TC_S_constrained_tmp
+                x_S_c3_constrained_fine[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = x_S_constrained_tmp
+                q_S_c3_constrained_fine[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = q_S_constrained_tmp
+                c_S_c3_constrained_fine[(labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] = q_S_constrained_tmp
+            end
+        end
+        #coeff_λ_2_s[:,θ_index] = Phi_a_fine\c_s_solve_mat[:,θ_index];
+        # for this simple case, this isnt needed as c_s_solve_mat = coeff_λ_2_s!!!
+    end
+    C_grid_fine_mat = repeat(C_grid_fine, 1, ns)
+    C_max_staple_constrained_fine = maximum(C_grid_fine_mat .* (exit_flag_mat_fine .== 0), dims=1)[:]
+    C_min_staple_constrained_fine = a_min * ones_tmp
+    # Create functions, use staples_objects later.
+
+    # Cash crop farmer
+    #π_possible = zeros(ns,3);
+    #x_SC_possible  = zeros(ns,3);
+    #x_BC_possible = zeros(ns,3);
+    #labor_allocated_possible = zeros(ns,3);
+    #λ_possible = zeros(ns,3);
+
+    #1) Specialize in cash crop: [24/03/2022 UPDATED LASZLO:]
+    x_B_bar_c1 = ((p_B * ϕ_B * ζ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_B_c1 = min.(κ .* s[:, 1] ./ p_x ./ (1 + τ_B), x_B_bar_c1)
+    q_B_c1 = ϕ_B * θ .* x_B_c1 .^ ζ
+    π_B_only_B_c1 = p_B * q_B_c1 - ((1 + τ_B) * p_x) * x_B_c1
+    #λ_B_only_B_c1_tmp =   p_B * ϕ_B .* θ .*ζ./p_x .* x_B_c1.^(ζ -1) ./ (1 + τ_B) .- 1;
+    λ_B_only_B_c1 = max.(p_B * ϕ_B .* θ .* ζ .* (κ .* s[:, 1]) .^ (ζ - 1) ./ (p_x * (1 + τ_B)) .^ ζ .- 1, 0.0)
+    P_B_c1 = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_B_c1 = -π_B_only_B_c1 #was: Y_B_c1 = (1 + Q_S) * c̄_S .- π_B_only_B_c1;
+
+    #2) Specialize in staple crop:
+    # Exactly the same problem as before, so just use function staples_objects
+
+    #π_possible[:,1] = π_B_only_B;
+    #x_SC_possible[:,1] .= 0;
+    #x_BC_possible[:,1] = x_B;
+    #labor_allocated_possible[:,1] .= 1.0;
+    #λ_possible[:,1] = λ_B_only_B;
+
+    #3) Internal solution - produces both staples and cash crop
+    #3a) q_S>c_S, hence no transaction cost paid [24/03/2022 UPDATED LASZLO:]
+    labor_allocated_interior_c3a = (p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) / ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + (ϕ_S * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ)))
+    x_SC_interior_c3a = ((ϕ_S * ζ * (1 .- labor_allocated_interior_c3a) .^ ρ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_BC_interior_c3a = ((p_B * ϕ_B * ζ * (labor_allocated_interior_c3a) .^ ρ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    total_cost_c3a = p_x * ((1 + τ_S) * x_SC_interior_c3a + (1 + τ_B) * x_BC_interior_c3a)
+    λ_B_interior_c3a = ζ * θ ./ (κ .* s[:, 1]) .^ (1 - ζ) .* ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + (ϕ_S * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ))) .^ (1 - ρ - ζ) ./ (p_x * (1 + τ_S) * (1 + τ_B)) .^ ζ .- 1
+    λ_B_interior_c3a = max.(λ_B_interior_c3a, 0.0)
+    Lagrange_factor = (1.0 .+ λ_B_interior_c3a) .^ (1 / (ζ - 1))
+    #x_tot_interior_c3a = (1+τ_S).*x_SC_interior_c3a .+ (1+τ_B).*x_BC_interior_c3a
+    x_SC_interior_c3a = x_SC_interior_c3a .* Lagrange_factor
+    x_BC_interior_c3a = x_BC_interior_c3a .* Lagrange_factor
+    total_cost_c3a = total_cost_c3a .* Lagrange_factor
+    q_S_c3a = ϕ_S * θ .* x_SC_interior_c3a .^ ζ .* (1.0 .- labor_allocated_interior_c3a) .^ ρ
+    q_B_c3a = ϕ_B * θ .* x_BC_interior_c3a .^ ζ .* labor_allocated_interior_c3a .^ ρ
+    π_B_interior_c3a = q_S_c3a + p_B * q_B_c3a - total_cost_c3a
+    P_B_c3a = (ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    Y_B_c3a = -π_B_interior_c3a #was: Y_B_c3a = c̄_S.-π_B_interior_c3a
+
+
+    #3b) q_S<c_S, hence transaction cost is always paid marginally [24/03/2022 UPDATED LASZLO:]
+    labor_allocated_interior_c3b = (p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) / ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + ((ϕ_S * (1 + Q_S)) * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ)))
+    x_SC_interior_c3b = (((ϕ_S * (1 + Q_S)) * ζ * (1 .- labor_allocated_interior_c3b) .^ ρ) / ((1 + τ_S) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    x_BC_interior_c3b = ((p_B * ϕ_B * ζ * (labor_allocated_interior_c3b) .^ ρ) / ((1 + τ_B) * p_x))^(1 / (1 - ζ)) * θ .^ (1 / (1 - ζ))
+    total_cost_c3b = p_x * ((1 + τ_S) * x_SC_interior_c3b + (1 + τ_B) * x_BC_interior_c3b)
+    λ_B_interior_c3b = ζ * θ ./ (κ .* s[:, 1]) .^ (1 - ζ) .* ((p_B * ϕ_B * (1 + τ_S)^ζ)^(1 / (1 - ρ - ζ)) + ((ϕ_S * (1 + Q_S)) * (1 + τ_B)^ζ)^(1 / (1 - ρ - ζ))) .^ (1 - ρ - ζ) ./ (p_x * (1 + τ_S) * (1 + τ_B)) .^ ζ .- 1
+    λ_B_interior_c3b = max.(λ_B_interior_c3b, 0.0)
+    Lagrange_factor = (1.0 .+ λ_B_interior_c3b) .^ (1 / (ζ - 1))
+    x_SC_interior_c3b = x_SC_interior_c3b .* Lagrange_factor
+    x_BC_interior_c3b = x_BC_interior_c3b .* Lagrange_factor
+    total_cost_c3b = total_cost_c3b .* Lagrange_factor
+    q_S_c3b = ϕ_S * θ .* x_SC_interior_c3b .^ ζ .* (1.0 .- labor_allocated_interior_c3b) .^ ρ
+    q_B_c3b = ϕ_B * θ .* x_BC_interior_c3b .^ ζ .* labor_allocated_interior_c3b .^ ρ
+    π_B_interior_c3b = p_B * q_B_c3b - total_cost_c3b
+    Y_B_c3b = -π_B_interior_c3b # market income for the csah crop producer
+    P_B_c3b = ((1 + Q_S)^(1 - ϵ) * ψ_S^ϵ + p_B^(1 - ϵ) * ψ_B^ϵ + p_M^(1 - ϵ) * ψ_M^ϵ)^(1 / (1 - ϵ))
+    #3c) q_S=c_S, hence transaction cost is not paid, but production is distorted, see functions above
+    C_max_mat = zeros(ns, 2)
+    C_min_mat = zeros(ns, 2)
+    conversion_to_higher_dim = convert(Int64, ns / size(C_max_unconstrained)[1])
+    C_max_mat[:, 1] = kron(C_max_unconstrained, ones(conversion_to_higher_dim))
+    #C_max_mat[:,2] =kron(C_max_constrained,ones(conversion_to_higher_dim));
+    C_min_mat[:, 1] = kron(C_min_unconstrained, ones(conversion_to_higher_dim))
+    C_max_staple_fine = kron(C_max_staple, ones(conversion_to_higher_dim))
+    #C_max_mat[:,2] =kron(C_max_constrained,ones(conversion_to_higher_dim));
+    C_min_staple_fine = kron(C_min_staple, ones(conversion_to_higher_dim))
+    #C_min_mat[:,2] =kron(C_min_constrained,ones(conversion_to_higher_dim));
+    # Initialization needed for the functions - better do it once here:
+    c_S_mat = zeros(ns, 5)
+    c_B_mat = zeros(ns, 5)
+    c_M_mat = zeros(ns, 5)
+    x_S_mat = zeros(ns, 5)
+    x_B_mat = zeros(ns, 5)
+    q_S_mat = zeros(ns, 5)
+    q_B_mat = zeros(ns, 5)
+    land_B_mat = zeros(ns, 5)
+    λ_2_mat = zeros(ns, 5)
+    P_B_mat = zeros(ns, 5)
+    feasibility_mat = zeros(ns, 5)
+    Y_B_mat = zeros(ns, 5)
+    TC_mat = zeros(ns, 5)
+    # Initialization needed for the constrained case of 3c functions - better do it once here:
+
+    x_S_mat_3c_fine = zeros(ns, 2)
+    x_B_mat_3c_fine = zeros(ns, 2)
+    land_B_mat_3c_fine = zeros(ns, 2)
+    λ_2_mat_3c_fine = zeros(ns, 2)
+    TC_mat_3c_fine = zeros(ns, 2)
+    #Calculate the coefficients - the constrained must be rerun as a_grid changes:
+    coeff_λ_2_s = kron(coeff_λ_2_s, ones(1, conversion_to_higher_dim))
+    coeff_λ_2_cashcrop_residual_unconstrained = kron(coeff_λ_2_cashcrop_residual_unconstrained, ones(1, conversion_to_higher_dim))
+    #3c) q_S=c_S, hence transaction cost is not paid, but production is distorted, see functions above
+    coeff_λ_2_cashcrop_residual_constrained = zeros(size(agrid_fine)[1], ns)
+    V_temp_cashcrop_residual_constrained = zeros(size(agrid_fine)[1], ns)
+    for z_index = 1:(convert(Int64, n[2] / no_labor_shock))
+        for a_index = 1:n[1]
+            (coeff_λ_2_cashcrop_residual_constrained_tmp, V_temp) = goldenx(λ_2_residual_constrained, ones_agrid_fine, (1 + Q_S) * ones_agrid_fine, tol, ϕ_S, ζ, τ_S, p_x, p_B, p_M, ϕ_B, τ_B, c̄_S, Q_S, z, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, z_index, agrid_fine, a_index, κ, ρ)
+            #V_temp,coeff_x_SC_interior_c3a_constrained_tmp = c_S_cashcrop_residual_constrained(coeff_c_S_cashcrop_residual_constrained_tmp,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,z,ϵ,ψ_S,ψ_B,ψ_M,C_grid_fine,z_index,agrid_fine,a_index,κ,1);
+            labor_shock_same_index = convert(Int64, ns / no_labor_shock)
+            for l_index = 0:(no_labor_shock-1)
+                coeff_λ_2_cashcrop_residual_constrained[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= coeff_λ_2_cashcrop_residual_constrained_tmp
+                #coeff_x_S_cashcrop_residual_constrained[:,(labor_shock_same_index*l_index+ a_index + ((z_index-1)*n[1]))].=coeff_x_SC_interior_c3a_constrained_tmp;
+                V_temp_cashcrop_residual_constrained[:, (labor_shock_same_index*l_index+a_index+((z_index-1)*n[1]))] .= V_temp
+            end
+        end
+    end
+    C_max_constrained = maximum(C_grid_fine_mat .* (V_temp_cashcrop_residual_constrained .> -tol), dims=1)[:]
+    #C_min_unconstrained = minimum(C_grid_fine_mat .* (V_temp_cashcrop_residual_unconstrained.> -tol)+ 1000*(V_temp_cashcrop_residual_unconstrained.< -tol) ,dims = 1  )[:];
+    tmp = zeros(Int64, ns)
+    for ii = 1:ns
+        if isnothing(findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_constrained.>-tol))[:, ii]))
+            tmp[ii] = 1
+        else
+            tmp[ii] = findfirst(myCondition, (C_grid_fine_mat.*(V_temp_cashcrop_residual_constrained.>-tol))[:, ii])
+        end
+    end
+    C_min_constrained = C_grid_fine[tmp]
+    #C_min_constrained =  minimum(C_grid_fine_mat .* (V_temp_cashcrop_residual_constrained.> -tol)+ 1000*(V_temp_cashcrop_residual_constrained.< -tol),dims = 1)[:];
+    C_max_mat[:, 2] = C_max_constrained
+    C_min_mat[:, 2] = C_min_constrained
+
+    #C = s_fine[:,1]/2 .+ a_min;
+    #    @btime Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
+    #        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,s_fine,q_S_c1_fine,
+    #        q_S_c2_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
+    #C = s_fine[:,1]/2 .+ a_min;
+    #Y_S,c_S_S,c_B_S,c_M_S,q_S_S,P_S,x_S_S,solve_staple_index_S,λ_2_S = staples_objects(C,ϕ_S,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ζ,c_s_residual,
+    #        c_s_constrained,c_s_approx_staples,θ_fine,coeff_λ_2_s_fine,fspace_a_fine,staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine,
+    #        x_S_c2_fine,s_fine,q_S_c1_fine,q_S_c2_fine,q_S_staples_fine,
+    #        c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine);
+
+    #@btime  (c_S_B,c_B_C,c_M_B,x_SC,x_BC,land_C,λ_2,P_B,Y_B,q_S_C,q_B_B,solve_cash_crop_index_B,solve_staple_index_B) = cashcrop_objects(C,coeff_c_S_cashcrop_residual_unconstrained_fine,
+    #        coeff_x_S_cashcrop_residual_unconstrained_fine,coeff_c_S_cashcrop_residual_constrained_fine,θ_fine,
+    #         fspace_a_fine,c_S_approx_cashcrop,x_S_approx_cashcrop,s_fine,ϕ_S,ζ,τ_S,p_x,p_B,
+    #             p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,
+    #             a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+    #             c_s_residual,c_s_constrained,c_s_approx_staples,coeff_λ_2_s_fine,
+    #             staples_c3_objects,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
+    #             y_c3a_fine,labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
+    #             x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,
+    #             q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
+    #             x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,
+    #             c_S_mat_fine,c_B_mat_fine,
+    #             c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,
+    #             λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,
+    #             y_bar_c3c_constraint_mat_fine,
+    #             q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,
+    #             x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine)
+
+    return (θ, labor_prod, tol, P_W, Y_W, coeff_λ_2_cashcrop_residual_unconstrained, coeff_λ_2_cashcrop_residual_constrained,
+        x_B_c1, π_B_only_B_c1, λ_B_only_B_c1, P_B_c1, Y_B_c1,
+        coeff_λ_2_s, P_S_c1, P_S_c2, Y_S_c1, Y_S_c2, x_S_c1, x_S_c2, labor_allocated_interior_c3a,
+        λ_B_interior_c3a, x_SC_interior_c3a, x_BC_interior_c3a, Y_B_c3a, P_B_c3a, P_B_c3b, q_S_c1, q_S_c2, q_B_c1, q_S_c3a, q_B_c3a, q_S_c3b, q_B_c3b,
+        x_SC_interior_c3b, x_BC_interior_c3b, labor_allocated_interior_c3b, Y_B_c3b, c_S_mat, c_B_mat,
+        c_M_mat, x_S_mat, x_B_mat, q_S_mat, q_B_mat, land_B_mat, λ_2_mat, P_B_mat, Y_B_mat, feasibility_mat, C_max_mat, C_min_mat, q_S_staples, c_S_staples, c_B_staples,
+        c_M_staples, P_S_staples, x_S_staples, λ_2_S_staples, unfeasible_mat, Y_S_potential, TC_mat, C_max_staple_fine, C_min_staple_fine, C_max_staple_constrained_fine,
+        C_min_staple_constrained_fine, TC_S_c3_constrained_fine, x_S_c3_constrained_fine, q_S_c3_constrained_fine, c_S_c3_constrained_fine,
+        x_S_mat_3c_fine, x_B_mat_3c_fine, land_B_mat_3c_fine, λ_2_mat_3c_fine, TC_mat_3c_fine)
 end
 
 function future_asset_creator(C::Array{Float64,1},jj::Int64,j::Int64,P_W::Float64,Y_W::Array{Float64,1},s::Array{Float64,2},r::Float64,ρ::Float64,w::Float64,
@@ -2250,4 +2837,17 @@ function cbar_creator(parameters_tmp::Parameter_type)
     q_S_minimum = parameters_tmp.ϕ_S * parameters_tmp.z[1] .*x_S_minimum.^parameters_tmp.ζ;
     fertilizer_exp_minimum =  parameters_tmp.p_x * x_S_minimum;
     return -parameters_tmp.a_min .+ q_S_minimum .- fertilizer_exp_minimum 
+end
+
+function movmean(array::Array{Float64,1},window::Int64)
+    array_size = size(array)[1];
+    array_smooth = zeros(array_size);
+    for i = 1:array_size
+        if i<window
+            array_smooth[i] = sum(array[1:i])/i
+        else
+            array_smooth[i] = sum(array[(i-window+1):i])/window
+        end
+    end
+    return array_smooth
 end

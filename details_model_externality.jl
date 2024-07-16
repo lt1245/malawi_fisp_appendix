@@ -1,441 +1,542 @@
-function details_model(prices::Vector{Float64},parameters_tmp::Parameter_type,out::Int64,moments::Vector{Float64},balanced_share::Float64,foreign_supply_capital::Float64)
-    r = moments[1];
-    L = moments[2];
-    K_Y_ratio = moments[3];
-    Y_agr_Y_tot = moments[4];
-    exported_cash_crop_ratio = moments[5];
-    fraction_staple_producers_without_surplus = moments[6];
-    G_Y_ratio = moments[7];
-    RCT_moment1_value = moments[8]; #RCT stuff
-    RCT_moment2_share = moments[9];
-    exp_ratio=moments[10];
-    RU_migration_rate=moments[11];
-    fraction_only_Bashcrops=moments[12];
-    mean_land_share_to_staples_among_cc=moments[13];
-    rural_pop_only_staples=moments[14];
-    urban_rural_inc_ratio=moments[15];
-    urban_rural_wealth_ratio=moments[16];
-    urban_rural_consumption_ratio=moments[17];
-    Top1_share_wealth_rural=moments[18];
-    Top1_share_income_rural=moments[19];
-    Top1_share_consumption_rural=moments[20];
-    Top10_share_wealth_rural=moments[21];
-    Top10_share_income_rural=moments[22];
-    Top10_share_consumption_rural=moments[23];
-    Top1_share_wealth_urban=moments[24];
-    Top1_share_income_urban=moments[25];
-    Top1_share_consumption_urban=moments[26];
-    Top10_share_wealth_urban=moments[27];
-    Top10_share_income_urban=moments[28];
-    Top10_share_consumption_urban=moments[29];
-    RCT_moment3_share=moments[30];
-    RCT_moment4_increase=moments[31];
-    fraction_borrowing_data =moments[32];
-    fraction_cashcrop_suboptimal = moments[33]; #from Brune et al EDCC 2016 Footnote 9.
-    APG_data= moments[34];
-    # var_log_cons_rural=moments[24];
-    # var_log_cons_urban=moments[25];
-    # var_log_inc_rural=moments[26];
-    # var_log_inc_urban=moments[27];
-    # var_log_wealth_rural=moments[28];
-    # var_log_wealth_urban=moments[29];
-    exitflag = 0;
+function details_model_externality(prices::Vector{Float64}, parameters_tmp::Parameter_type, out::Int64, moments::Vector{Float64}, balanced_share::Float64, foreign_supply_capital::Float64, cons_level_substinence::Float64, epsilon_u::Float64, epsilon_r::Float64)
 
-    # Initialization
-    (δ,ζ,ρ,α,σ,β,ϵ,ψ_S,ψ_B,ψ_M,ϕ_S,ϕ_B,c̄_S,F_W,F_S,F_B,FM_W,FM_S,FM_B,Q_S,p_x,τ_S,τ_B,a_D,b_D,K_a,K_b,γ,A_W,
-    ρ_S,ρ_SW,σ_S,ρ_W,σ_W,n,n_fine,agrid,agrid_fine,a_min,a_max,spliorder,fspace_a,fspace_a_fine,fspace_C_fine,C_grid_fine_no,C_grid_fine,s,ns,
-    s_fine,ns_fine,z,z_W,Phi_z,Phi_z_fine,Phi,Phi_aug,P_kron,P_kron1,P_kron_fine,κ) = local_parameters(parameters_tmp);
+    ctilde = copy(cons_level_substinence)
 
-    p_B,p_M,R,r,w,τ_W= price_reshaper_fixed_r(prices,δ,ϵ,ψ_S,ψ_B,ψ_M,p_x,τ_S,τ_B,α,balanced_share,r);
-
-    #println("Trying p_B: ", p_B, " p_M: ", p_M, " r: ", r, " w: ", w)
-
-    (θ,labor_prod,tol,P_W,Y_W,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
-            coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,
-            q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
-            c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
-            c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,C_max_unconstrained ,C_max_constrained,C_min_unconstrained,
-            C_min_constrained,TC_mat,C_max_staple,C_min_staple,C_max_staple_constrained,C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,
-            q_S_c3_constrained,c_S_c3_constrained,cbar_violated, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c) = income_creator(s,ns,z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,
-                c̄_S,a_min,a_max,γ,n,κ,Q_S,ϵ,ψ_S,ψ_B,ψ_M,C_grid_fine,fspace_C_fine,agrid);
-            #println("cbar: ", cbar_violated)
-
-    #if cbar_violated==0
-    min_C_applied,max_C_applied = bounds_consumption(P_W,Y_W,s,r,ρ,w,
-        coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,θ,
-            fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns,κ,tol,a_min,a_max,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
-                coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,
-                λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,
-                x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
-                c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
-                c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,
-                FM_W,FM_S,FM_B,TC_mat,C_max_staple,C_min_staple,C_max_staple_constrained,C_min_staple_constrained,TC_S_c3_constrained,
-                x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c);
-
-
-
-
-    coeff = zeros(ns,3);
-    coeff_next = zeros(ns,3);
-    x_tmp = zeros(ns,3);
-    V_tmp = zeros(ns,3);
-    V_next_stacked = zeros(ns*3,1);
-    iterate1 = 0;
-    conv = 10.0
-    Phi_prime_tmp = Array{SparseMatrixCSC{Float64,Int64}}(undef, 3);
-    D_deriv_tmp_block = Array{SparseMatrixCSC{Float64,Int64}}(undef, 3,1);
-    Q_trans = spzeros(ns_fine*3,ns_fine*3);
-    for i = 1:3
-    #while conv> 10^(-7)
-    (coeff[:], conv, conv_ind)  = Bellman_iteration(coeff,coeff_next,x_tmp,V_tmp,P_kron,Phi,min_C_applied,max_C_applied,Phi_z,β,
-        fspace_a,σ,P_W,Y_W,s,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,θ,
-        fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns,κ,tol,a_min,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
-        coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,
-        λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,
-        x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
-        c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
-        c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat,a_max,C_max_staple,C_min_staple,C_max_staple_constrained,
-        C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained,x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c);
-        #println("Conv criterion:", conv, "Max error index:", conv_ind)
+    if size(prices,1)<3 && balanced_share>0.0 
+        error("Prices input wrong sized")
     end
-    while conv> 10^(-7)
-    (coeff[:], conv,iterate1,exitflag,conv_ind) =     Newton_iteration(coeff,x_tmp,V_tmp,P_kron,Phi,min_C_applied,max_C_applied,Phi_z,β,
+
+    if balanced_share>0.0 && (prices[1]<0.0 || prices[2]<0.0 || prices[3]<0.0)
+
+        if prices[1]<0.0
+            residual_goods = [prices[1]^2*10000 + 1.00,prices[2]^2*1 + 1.00,
+                            prices[3]^2*1 + 1.00,1.0^2*1 + 1.00,1.0, 100.00];
+        elseif prices[2]<0.0
+            residual_goods = [prices[1]^2*1 + 1.00,prices[2]^2*10000 + 1.00,
+                            prices[3]^2*1 + 1.00,1.0^2*1 + 1.00,1.0, 100.00];
+        elseif prices[3]<0.0
+            residual_goods = [prices[1]^2*1 + 1.00,prices[2]^2*1 + 1.00,
+                            prices[3]^2*10000 + 1.00,1.0^2*1 + 1.00,1.0, 100.00];
+        end
+
+        return residual_goods
+
+    elseif balanced_share==0.0  && (prices[1]<0.0 || prices[2]<0.0)
+
+        if prices[1]<0.0
+            residual_goods = [prices[1]^2*10000 + 100.00,prices[2]^2*1 + 100.00,
+                            1.00,1.00,1.0];
+        elseif prices[2]<0.0
+            residual_goods = [prices[1]^2*1 + 100.00,prices[2]^2*10000 + 100.00,
+                            1.00,1.00,1.0];
+        end
+        return residual_goods
+
+    else
+        r = moments[1];
+        L = moments[2];
+        K_Y_ratio = moments[3];
+        Y_agr_Y_tot = moments[4];
+        exported_cash_crop_ratio = moments[5];
+        fraction_staple_producers_without_surplus = moments[6];
+        G_Y_ratio = moments[7];
+        RCT_moment1_value = moments[8]; #RCT stuff
+        RCT_moment2_share = moments[9];
+        exp_ratio=moments[10];
+        RU_migration_rate=moments[11];
+        fraction_only_Bashcrops=moments[12];
+        mean_land_share_to_staples_among_cc=moments[13];
+        rural_pop_only_staples=moments[14];
+        urban_rural_inc_ratio=moments[15];
+        urban_rural_wealth_ratio=moments[16];
+        urban_rural_consumption_ratio=moments[17];
+        Top1_share_wealth_rural=moments[18];
+        Top1_share_income_rural=moments[19];
+        Top1_share_consumption_rural=moments[20];
+        Top10_share_wealth_rural=moments[21];
+        Top10_share_income_rural=moments[22];
+        Top10_share_consumption_rural=moments[23];
+        Top1_share_wealth_urban=moments[24];
+        Top1_share_income_urban=moments[25];
+        Top1_share_consumption_urban=moments[26];
+        Top10_share_wealth_urban=moments[27];
+        Top10_share_income_urban=moments[28];
+        Top10_share_consumption_urban=moments[29];
+        RCT_moment3_share=moments[30];
+        RCT_moment4_increase=moments[31];
+        fraction_borrowing_data =moments[32];
+        fraction_cashcrop_suboptimal = moments[33]; #from Brune et al EDCC 2016 Footnote 9.
+        APG_data= moments[34];
+        # var_log_cons_rural=moments[24];
+        # var_log_cons_urban=moments[25];
+        # var_log_inc_rural=moments[26];
+        # var_log_inc_urban=moments[27];
+        # var_log_wealth_rural=moments[28];
+        # var_log_wealth_urban=moments[29];
+        exitflag = 0;
+
+        if balanced_share>0.0
+            cttilde=prices[4]
+        else
+            cttilde=prices[3]
+        end
+
+        # Initialization
+        (δ,ζ,ρ,α,σ,β,ϵ,ψ_S,ψ_B,ψ_M,ϕ_S,ϕ_B,c̄_S,F_W,F_S,F_B,FM_W,FM_S,FM_B,Q_S,p_x,τ_S,τ_B,a_D,b_D,K_a,K_b,γ,A_W,
+        ρ_S,ρ_SW,σ_S,ρ_W,σ_W,n,n_fine,agrid,agrid_fine,a_min,a_max,spliorder,fspace_a,fspace_a_fine,fspace_C_fine,C_grid_fine_no,C_grid_fine,s,ns,
+            s_fine, ns_fine, z, z_W, Phi_z, Phi_z_fine, Phi, Phi_aug, P_kron, P_kron1, P_kron_fine, κ) = local_parameters_ext(parameters_tmp, epsilon_r,cttilde, ctilde)
+
+        p_B,p_M,R,r,w,τ_W= price_reshaper_fixed_r(prices,δ,ϵ,ψ_S,ψ_B,ψ_M,p_x,τ_S,τ_B,α,balanced_share,r);
+
+
+
+        #println("Trying p_B: ", p_B, " p_M: ", p_M, " r: ", r, " w: ", w)
+
+        (θ,labor_prod,tol,P_W,Y_W,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
+                coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,
+                q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
+                c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
+                c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,C_max_unconstrained ,C_max_constrained,C_min_unconstrained,
+                C_min_constrained,TC_mat,C_max_staple,C_min_staple,C_max_staple_constrained,C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,
+                q_S_c3_constrained,c_S_c3_constrained,cbar_violated, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c) = income_creator_ext(s,ns,z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,
+            c̄_S, a_min, a_max, γ, n, κ, Q_S, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, fspace_C_fine, agrid, epsilon_u, cttilde, ctilde)
+                #println("cbar: ", cbar_violated)
+
+        #if cbar_violated==0
+        min_C_applied,max_C_applied = bounds_consumption(P_W,Y_W,s,r,ρ,w,
+            coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,θ,
+                fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns,κ,tol,a_min,a_max,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
+                    coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,
+                    λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,
+                    x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
+                    c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
+                    c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,
+                    FM_W,FM_S,FM_B,TC_mat,C_max_staple,C_min_staple,C_max_staple_constrained,C_min_staple_constrained,TC_S_c3_constrained,
+                    x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c);
+
+
+
+
+        coeff = zeros(ns,3);
+        coeff_next = zeros(ns,3);
+        x_tmp = zeros(ns,3);
+        V_tmp = zeros(ns,3);
+        V_next_stacked = zeros(ns*3,1);
+        iterate1 = 0;
+        conv = 10.0
+        Phi_prime_tmp = Array{SparseMatrixCSC{Float64,Int64}}(undef, 3);
+        D_deriv_tmp_block = Array{SparseMatrixCSC{Float64,Int64}}(undef, 3,1);
+        Q_trans = spzeros(ns_fine*3,ns_fine*3);
+        for i = 1:3
+        #while conv> 10^(-7)
+        (coeff[:], conv, conv_ind)  = Bellman_iteration(coeff,coeff_next,x_tmp,V_tmp,P_kron,Phi,min_C_applied,max_C_applied,Phi_z,β,
             fspace_a,σ,P_W,Y_W,s,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,θ,
             fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns,κ,tol,a_min,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
             coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,
             λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,
             x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
             c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
-            c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat,a_max,
-            V_next_stacked,iterate1,Phi_prime_tmp,D_deriv_tmp_block,Phi_aug,P_kron1,exitflag,C_max_staple,C_min_staple,C_max_staple_constrained,
+            c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat,a_max,C_max_staple,C_min_staple,C_max_staple_constrained,
             C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained,x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c);
-        if iterate1>20
-            conv = 0;
-            exitflag=4;
-        end
             #println("Conv criterion:", conv, "Max error index:", conv_ind)
-    end
-    # Aggregates
-    (θ_fine,labor_prod_fine,tol,P_W_fine,Y_W_fine,coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,
-            x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-            coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,labor_allocated_interior_c3a_fine,
-            λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,
-            q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine, c_S_mat_fine,c_B_mat_fine,
-            c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine, λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,
-            C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,
-            Y_S_potential_fine,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
-            C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine, x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine) =  income_creator_no_approx(s_fine,ns_fine,
-            z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,c̄_S,a_min,a_max,γ,n_fine,κ,Q_S,ϵ,ψ_S,ψ_B,ψ_M,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,
-            C_max_unconstrained ,C_max_constrained,C_min_unconstrained,C_min_constrained, coeff_λ_2_s,C_grid_fine,fspace_C_fine,C_max_staple,C_min_staple,C_max_staple_constrained,
-        C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained);
-
-
-    min_C_applied_fine,max_C_applied_fine = bounds_consumption(P_W_fine,Y_W_fine,s_fine,r,ρ,w,
-    coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,
-    fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,
-    a_min,a_max,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-    coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
-    labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
-    x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,
-    q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
-    x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,
-    c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,
-    λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,
-    q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,
-    x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,
-    C_min_staple_fine,C_max_staple_constrained_fine,C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
-    x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
-
-    (Q_trans_prime,cons_fine_local,a_prime_fine_local,future_occupation_fine_local,V_saved_local) = Q_transition(coeff,ns_fine,P_kron_fine,min_C_applied_fine,max_C_applied_fine,Phi_z_fine,
-        β,fspace_a,σ,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,
-        fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-        coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
-        x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
-        x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,
-        q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,
-        c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,a_max,P_kron1,Q_trans,
-        C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
-        C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,fspace_a_fine,
-        x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
-
-    exitflag = predict_irreducibility(future_occupation_fine_local,exitflag);
-
-
-    stat_distr,exitflag_tmp = stationary_distribution(Q_trans_prime,ns_fine,exitflag);
-
-    # Start acquiring objects for the equilibrium
-    # Distribution of past occupations
-    worker_past_dist = stat_distr[(ns_fine *0 + 1):(ns_fine *1)];
-    staple_past_dist = stat_distr[(ns_fine *1 + 1):(ns_fine *2)];
-    cash_crop_past_dist = stat_distr[(ns_fine *2 + 1):(ns_fine *3)];
-
-    # Policy functions:
-    c_S_W_fine= zeros(ns_fine,3);
-    c_B_W_fine= zeros(ns_fine,3);
-    c_M_W_fine= zeros(ns_fine,3);
-    Y_W_fine_policy = zeros(ns_fine,3);
-    Y_S_fine = zeros(ns_fine,3);
-    c_S_S_fine= zeros(ns_fine,3);
-    c_B_S_fine= zeros(ns_fine,3);
-    c_M_S_fine= zeros(ns_fine,3);
-    q_S_S_fine= zeros(ns_fine,3);
-    P_S_fine= zeros(ns_fine,3);
-    x_S_S_fine= zeros(ns_fine,3);
-    solve_staple_index_S_fine= zeros(Int64,ns_fine,3);
-    λ_2_S_fine= zeros(ns_fine,3);
-    future_asset_S= zeros(ns_fine,3);
-    future_asset_C= zeros(ns_fine,3);
-    c_S_B_fine= zeros(ns_fine,3);
-    c_B_B_fine= zeros(ns_fine,3);
-    c_M_B_fine= zeros(ns_fine,3);
-    x_SC_fine= zeros(ns_fine,3);
-    x_BC_fine= zeros(ns_fine,3);
-    land_C_fine= zeros(ns_fine,3);
-    λ_2_fine= zeros(ns_fine,3);
-    P_B_fine= zeros(ns_fine,3);
-    Y_B_fine= zeros(ns_fine,3);
-    q_S_B_fine= zeros(ns_fine,3);
-    q_B_B_fine= zeros(ns_fine,3);
-    solve_cash_crop_index_B_fine= zeros(Int64,ns_fine,3);
-    solve_staple_index_B_fine= zeros(Int64,ns_fine,3);
-    TC_fine= zeros(ns_fine,3);
-    for j = 1:3
-        for jj =1:3
-        if jj == 1
-            Y_W_fine_policy[:,j] =  P_W *cons_fine_local[:,j]  + Y_W_fine  .+ w*FM_W .+ w*F_W * (j != 1);
         end
-            if jj == 2
-                (future_asset_S[:,j],Y_S_fine[:,j],c_S_S_fine[:,j],c_B_S_fine[:,j],c_M_S_fine[:,j],q_S_S_fine[:,j],
-                P_S_fine[:,j],x_S_S_fine[:,j],solve_staple_index_S_fine[:,j],λ_2_S_fine[:,j]) = policy_function_creator(
-                cons_fine_local[:,j],jj,j,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,
-                coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,
-                p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-                coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
-                labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,
-                q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,
-                Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,
-                feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,
-                λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
-                C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
+        while conv> 10^(-7)
+        (coeff[:], conv,iterate1,exitflag,conv_ind) =     Newton_iteration(coeff,x_tmp,V_tmp,P_kron,Phi,min_C_applied,max_C_applied,Phi_z,β,
+                fspace_a,σ,P_W,Y_W,s,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,θ,
+                fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns,κ,tol,a_min,x_B_c1,π_B_only_B_c1,λ_B_only_B_c1,P_B_c1,Y_B_c1,
+                coeff_λ_2_s,P_S_c1,P_S_c2,Y_S_c1,Y_S_c2,x_S_c1, x_S_c2,labor_allocated_interior_c3a,
+                λ_B_interior_c3a,x_SC_interior_c3a,x_BC_interior_c3a,Y_B_c3a,P_B_c3a,P_B_c3b,q_S_c1,q_S_c2,q_B_c1,q_S_c3a,q_B_c3a,q_S_c3b,q_B_c3b,
+                x_SC_interior_c3b,x_BC_interior_c3b,labor_allocated_interior_c3b,Y_B_c3b, c_S_mat,c_B_mat,
+                c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
+                c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat,a_max,
+                V_next_stacked,iterate1,Phi_prime_tmp,D_deriv_tmp_block,Phi_aug,P_kron1,exitflag,C_max_staple,C_min_staple,C_max_staple_constrained,
+                C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained,x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c);
+            if iterate1>20
+                println("Conv criterion:", conv, "Max error index:", conv_ind, prices)
+                conv = 0;
+                exitflag=4;
+            end
+                #println("Conv criterion:", conv, "Max error index:", conv_ind,coeff[conv_ind[2][1],conv_ind[2][2]])
+        end
+        #end
+        if balanced_share>0.0
+            residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
+            r^2*100 + 1.00,w^2*100 + 1.00,100,τ_W^2*100 + 1.00,ctilde^2*100 + 1.00]; # Placeholder if everything is fine, this is overwritten
+            tmp_var=ones(7);
+        else
+            residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
+                r^2 * 100 + 1.00, w^2 * 100 + 1.00, 100, ctilde^2 * 100 + 1.00] # Placeholder if everything is fine, this is overwritten
+            tmp_var=ones(6);
+        end
+
+        if exitflag==4
+            residual_goods = 100.0*tmp_var;
+        elseif cbar_violated==1
+            residual_goods = 200.0*tmp_var;
+        else
+            # Aggregates
+            (θ_fine,labor_prod_fine,tol,P_W_fine,Y_W_fine,coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,
+                    x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+                    coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,labor_allocated_interior_c3a_fine,
+                    λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,
+                    q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine, c_S_mat_fine,c_B_mat_fine,
+                    c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine, λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,
+                    C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,
+                    Y_S_potential_fine,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
+                    C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine, x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine) =  income_creator_no_approx_ext(s_fine,ns_fine,
+                    z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,c̄_S,a_min,a_max,γ,n_fine,κ,Q_S,ϵ,ψ_S,ψ_B,ψ_M,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,
+                    C_max_unconstrained ,C_max_constrained,C_min_unconstrained,C_min_constrained, coeff_λ_2_s,C_grid_fine,fspace_C_fine,C_max_staple,C_min_staple,C_max_staple_constrained,
+                C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained, epsilon_u, cttilde, ctilde);
+
+
+            min_C_applied_fine,max_C_applied_fine = bounds_consumption(P_W_fine,Y_W_fine,s_fine,r,ρ,w,
+            coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,
+            fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,
+            a_min,a_max,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+            coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
+            labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
+            x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,
+            q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
+            x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,
+            c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,
+            λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,
+            q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,
+            x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,
+            C_min_staple_fine,C_max_staple_constrained_fine,C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
+            x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
+
+            (Q_trans_prime,cons_fine_local,a_prime_fine_local,future_occupation_fine_local,V_saved_local) = Q_transition(coeff,ns_fine,P_kron_fine,min_C_applied_fine,max_C_applied_fine,Phi_z_fine,
+                β,fspace_a,σ,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,
+                fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+                coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,
+                x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,
+                x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,
+                q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,
+                c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,a_max,P_kron1,Q_trans,
+                C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
+                C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,fspace_a_fine,
                 x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
-            elseif jj == 3
-                (future_asset_C[:,j],c_S_B_fine[:,j],c_B_B_fine[:,j],c_M_B_fine[:,j],x_SC_fine[:,j],x_BC_fine[:,j],
-                land_C_fine[:,j],λ_2_fine[:,j],P_B_fine[:,j],Y_B_fine[:,j],q_S_B_fine[:,j],q_B_B_fine[:,j],solve_cash_crop_index_B_fine[:,j]
-                ,solve_staple_index_B_fine[:,j],TC_fine[:,j]) = policy_function_creator(
-                cons_fine_local[:,j],jj,j,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,
-                coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,
-                p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
-                coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
-                labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,
-                q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,
-                Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,
-                feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,
-                λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
-                C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
-                x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
+
+            exitflag = predict_irreducibility(future_occupation_fine_local,exitflag);
+
+
+            stat_distr,exitflag_tmp = stationary_distribution(Q_trans_prime,ns_fine,exitflag);
+
+            if exitflag_tmp ==5
+                if balanced_share>0.0
+                    residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
+                    r^2*100 + 1.00,w^2*100 + 1.00,100,τ_W^2*100 + 1.00]; # Placeholder if everything is fine, this is overwritten
+                else
+                    residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
+                    r^2*100 + 1.00,w^2*100 + 1.00,100]; # Placeholder if everything is fine, this is overwritten
+                end
+            else
+                # Start acquiring objects for the equilibrium
+                # Distribution of past occupations
+                worker_past_dist = stat_distr[(ns_fine *0 + 1):(ns_fine *1)];
+                staple_past_dist = stat_distr[(ns_fine *1 + 1):(ns_fine *2)];
+                cash_crop_past_dist = stat_distr[(ns_fine *2 + 1):(ns_fine *3)];
+
+                # Policy functions:
+                c_S_W_fine= zeros(ns_fine,3);
+                c_B_W_fine= zeros(ns_fine,3);
+                c_M_W_fine= zeros(ns_fine,3);
+                Y_W_fine_policy = zeros(ns_fine,3);
+                Y_S_fine = zeros(ns_fine,3);
+                c_S_S_fine= zeros(ns_fine,3);
+                c_B_S_fine= zeros(ns_fine,3);
+                c_M_S_fine= zeros(ns_fine,3);
+                q_S_S_fine= zeros(ns_fine,3);
+                P_S_fine= zeros(ns_fine,3);
+                x_S_S_fine= zeros(ns_fine,3);
+                solve_staple_index_S_fine= zeros(Int64,ns_fine,3);
+                λ_2_S_fine= zeros(ns_fine,3);
+                future_asset_S= zeros(ns_fine,3);
+                future_asset_C= zeros(ns_fine,3);
+                c_S_B_fine= zeros(ns_fine,3);
+                c_B_B_fine= zeros(ns_fine,3);
+                c_M_B_fine= zeros(ns_fine,3);
+                x_SC_fine= zeros(ns_fine,3);
+                x_BC_fine= zeros(ns_fine,3);
+                land_C_fine= zeros(ns_fine,3);
+                λ_2_fine= zeros(ns_fine,3);
+                P_B_fine= zeros(ns_fine,3);
+                Y_B_fine= zeros(ns_fine,3);
+                q_S_B_fine= zeros(ns_fine,3);
+                q_B_B_fine= zeros(ns_fine,3);
+                solve_cash_crop_index_B_fine= zeros(Int64,ns_fine,3);
+                solve_staple_index_B_fine= zeros(Int64,ns_fine,3);
+                TC_fine= zeros(ns_fine,3);
+                for j = 1:3
+                    for jj =1:3
+                    if jj == 1
+                        Y_W_fine_policy[:,j] =  P_W *cons_fine_local[:,j]  + Y_W_fine  .+ w*FM_W .+ w*F_W * (j != 1);
+                    end
+                        if jj == 2
+                            (future_asset_S[:,j],Y_S_fine[:,j],c_S_S_fine[:,j],c_B_S_fine[:,j],c_M_S_fine[:,j],q_S_S_fine[:,j],
+                            P_S_fine[:,j],x_S_S_fine[:,j],solve_staple_index_S_fine[:,j],λ_2_S_fine[:,j]) = policy_function_creator(
+                            cons_fine_local[:,j],jj,j,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,
+                            coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,
+                            p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+                            coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
+                            labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,
+                            q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,
+                            Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,
+                            feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,
+                            λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
+                            C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
+                            x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
+                        elseif jj == 3
+                            (future_asset_C[:,j],c_S_B_fine[:,j],c_B_B_fine[:,j],c_M_B_fine[:,j],x_SC_fine[:,j],x_BC_fine[:,j],
+                            land_C_fine[:,j],λ_2_fine[:,j],P_B_fine[:,j],Y_B_fine[:,j],q_S_B_fine[:,j],q_B_B_fine[:,j],solve_cash_crop_index_B_fine[:,j]
+                            ,solve_staple_index_B_fine[:,j],TC_fine[:,j]) = policy_function_creator(
+                            cons_fine_local[:,j],jj,j,P_W_fine,Y_W_fine,s_fine,r,ρ,w,coeff_λ_2_cashcrop_residual_unconstrained_fine,
+                            coeff_λ_2_cashcrop_residual_constrained_fine,θ_fine,fspace_C_fine,ϕ_S,ζ,τ_S,p_x,p_B,
+                            p_M,ϕ_B,τ_B,c̄_S,Q_S,ϵ,ψ_S,ψ_B,ψ_M,ns_fine,κ,tol,a_min,x_B_c1_fine,π_B_only_B_c1_fine,λ_B_only_B_c1_fine,P_B_c1_fine,Y_B_c1_fine,
+                            coeff_λ_2_s_fine,P_S_c1_fine,P_S_c2_fine,Y_S_c1_fine,Y_S_c2_fine,x_S_c1_fine, x_S_c2_fine,
+                            labor_allocated_interior_c3a_fine,λ_B_interior_c3a_fine,x_SC_interior_c3a_fine,x_BC_interior_c3a_fine,Y_B_c3a_fine,P_B_c3a_fine,P_B_c3b_fine,q_S_c1_fine,
+                            q_S_c2_fine,q_B_c1_fine,q_S_c3a_fine,q_B_c3a_fine,q_S_c3b_fine,q_B_c3b_fine,x_SC_interior_c3b_fine,x_BC_interior_c3b_fine,labor_allocated_interior_c3b_fine,
+                            Y_B_c3b_fine,c_S_mat_fine,c_B_mat_fine,c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine,λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,
+                            feasibility_mat_fine,C_max_mat_fine,C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,
+                            λ_2_S_staples_fine,unfeasible_mat_fine,Y_S_potential_fine,F_W,F_S,F_B,FM_W,FM_S,FM_B,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
+                            C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine,
+                            x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine);
+                        end
+                    end
+                end
+                matcheck= zeros(ns_fine,12)
+                matcheck[:,1:3]= future_occupation_fine_local;
+                matcheck[:,4:6] = future_asset_S;#s_fine
+                matcheck[:,7:9] = future_asset_C;#s_fine
+                #matcheck[:,6:8] = cons_fine_local
+                #matcheck[:,9:11] = solve_cash_crop_index_B_fine
+                # Distribution of current occupations
+                current_distr_store = zeros(3 * ns_fine);
+
+                past_distr_store = zeros(ns_fine,3);
+
+                stay_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==1);
+                exit_staple_to_work = staple_past_dist.*(future_occupation_fine_local[:,2].==1);
+                exit_cashcrop_to_work = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==1);
+                current_workers = stay_workers + exit_staple_to_work + exit_cashcrop_to_work;
+                # Worker policy functions are easy:
+                c_S_W_fine[:,1] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
+                c_S_W_fine[:,2] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
+                c_S_W_fine[:,3] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
+                c_B_W_fine[:,1] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
+                c_B_W_fine[:,2] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
+                c_B_W_fine[:,3] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
+                c_M_W_fine[:,1] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
+                c_M_W_fine[:,2] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
+                c_M_W_fine[:,3] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
+
+                c_S_worker_sum = sum( c_S_W_fine[:,1].*stay_workers + c_S_W_fine[:,2].*exit_staple_to_work +
+                c_S_W_fine[:,3] .*exit_cashcrop_to_work );
+                c_B_worker_sum = sum(c_B_W_fine[:,1] .*stay_workers +c_B_W_fine[:,2] .*exit_staple_to_work +
+                c_B_W_fine[:,3] .*exit_cashcrop_to_work );
+                c_M_worker_sum = sum(c_M_W_fine[:,1] .*stay_workers +c_M_W_fine[:,2] .*exit_staple_to_work +
+                c_M_W_fine[:,3] .*exit_cashcrop_to_work );
+                urban_labor_supply_sum = sum(current_workers.*labor_prod_fine);
+                transaction_cost_worker_sum = c_S_worker_sum * Q_S;
+
+                entrants_staple_from_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==2);
+                incumbents_staple = staple_past_dist.*(future_occupation_fine_local[:,2].==2);
+                exit_cashcrop_to_staple = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==2);
+                current_staple = entrants_staple_from_workers + incumbents_staple + exit_cashcrop_to_staple;
+                # Staple policy function now depends on consumption, hence the decision is always different!
+
+
+                c_S_staple_sum = sum(c_S_S_fine[:,1] .*entrants_staple_from_workers + c_S_S_fine[:,2] .*incumbents_staple
+                + c_S_S_fine[:,3] .*exit_cashcrop_to_staple);
+                c_B_staple_sum = sum(c_B_S_fine[:,1] .*entrants_staple_from_workers + c_B_S_fine[:,2] .*incumbents_staple
+                + c_B_S_fine[:,3] .*exit_cashcrop_to_staple);
+                c_M_staple_sum = sum(c_M_S_fine[:,1] .*entrants_staple_from_workers + c_M_S_fine[:,2] .*incumbents_staple
+                + c_M_S_fine[:,3] .*exit_cashcrop_to_staple);
+                q_S_staple_sum = sum(q_S_S_fine[:,1] .*entrants_staple_from_workers + q_S_S_fine[:,2] .*incumbents_staple
+                + q_S_S_fine[:,3] .*exit_cashcrop_to_staple);
+                x_S_staple_sum = sum(x_S_S_fine[:,1] .*entrants_staple_from_workers + x_S_S_fine[:,2] .*incumbents_staple
+                + x_S_S_fine[:,3] .*exit_cashcrop_to_staple);
+
+                transaction_cost_staple_sum = Q_S * sum(max.(c_S_S_fine[:,1] - q_S_S_fine[:,1],0) .*entrants_staple_from_workers +
+                    max.(c_S_S_fine[:,2] - q_S_S_fine[:,2],0) .*incumbents_staple +
+                    max.(c_S_S_fine[:,3] - q_S_S_fine[:,3],0) .*exit_cashcrop_to_staple);
+
+                entrants_cashcrop_from_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==3);
+                entrants_from_staple_to_cashcrop= staple_past_dist.*(future_occupation_fine_local[:,2].==3);
+                incumbents_cashcrop = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==3);
+                current_cashcrop = entrants_cashcrop_from_workers + incumbents_cashcrop + entrants_from_staple_to_cashcrop;
+                # Cash crop producer policy functions now depends on consumption, hence the decision is always different!
+
+                c_S_cashcrop_sum = sum(c_S_B_fine[:,1] .*entrants_cashcrop_from_workers + c_S_B_fine[:,3] .*incumbents_cashcrop
+                + c_S_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                c_B_Cashcrop_sum = sum(c_B_B_fine[:,1] .*entrants_cashcrop_from_workers + c_B_B_fine[:,3] .*incumbents_cashcrop
+                + c_B_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                c_M_cashcrop_sum = sum(c_M_B_fine[:,1] .*entrants_cashcrop_from_workers + c_M_B_fine[:,3] .*incumbents_cashcrop
+                + c_M_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                q_S_cashcrop_sum = sum(q_S_B_fine[:,1] .*entrants_cashcrop_from_workers + q_S_B_fine[:,3] .*incumbents_cashcrop
+                + q_S_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                q_B_cashcrop_sum = sum(q_B_B_fine[:,1] .*entrants_cashcrop_from_workers + q_B_B_fine[:,3] .*incumbents_cashcrop
+                + q_B_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                x_S_cashcrop_sum = sum(x_SC_fine[:,1] .*entrants_cashcrop_from_workers + x_SC_fine[:,3] .*incumbents_cashcrop
+                + x_SC_fine[:,2] .*entrants_from_staple_to_cashcrop);
+                x_B_cashcrop_sum = sum(x_BC_fine[:,1] .*entrants_cashcrop_from_workers + x_BC_fine[:,3] .*incumbents_cashcrop
+                + x_BC_fine[:,2] .*entrants_from_staple_to_cashcrop);
+
+                transaction_cost_cashcrop_sum = Q_S * sum(max.(c_S_B_fine[:,1] - q_S_B_fine[:,1],0) .*entrants_cashcrop_from_workers +
+                    max.(c_S_B_fine[:,2] - q_S_B_fine[:,2],0) .*entrants_from_staple_to_cashcrop +
+                    max.(c_S_B_fine[:,3] - q_S_B_fine[:,3],0) .*incumbents_cashcrop);
+
+                current_distr_store[(ns_fine *0 + 1):(ns_fine *1)] = current_workers;
+                current_distr_store[(ns_fine *1 + 1):(ns_fine *2)] = current_staple;
+                current_distr_store[(ns_fine *2 + 1):(ns_fine *3)] = current_cashcrop;
+
+
+                past_distr_store[:,1]=stat_distr[(ns_fine *0 + 1):(ns_fine *1)];
+                past_distr_store[:,2]=stat_distr[(ns_fine *1 + 1):(ns_fine *2)];
+                past_distr_store[:,3]=stat_distr[(ns_fine *2 + 1):(ns_fine *3)];
+
+                current_worker_pop = sum(current_workers);
+                current_staple_pop = sum(current_staple);
+                current_cashcrop_pop = sum(current_cashcrop);
+                # Entry cost accounting - measured in labor, convert with wages later
+                entry_costs_to_workers =  F_W*(sum(exit_staple_to_work) + sum(exit_cashcrop_to_work));
+                entry_costs_to_staples = F_S*(sum(entrants_staple_from_workers)); #Not needed: + sum(exit_cashcrop_to_work));
+                entry_costs_to_cashcrops = F_B*(sum(entrants_cashcrop_from_workers) + sum(entrants_from_staple_to_cashcrop));
+                total_entry_cost = entry_costs_to_workers + entry_costs_to_staples + entry_costs_to_cashcrops;
+                # Maintenance cost accounting
+                maintenance_costs_for_workers =  FM_W*(current_worker_pop);
+                maintenance_costs_to_staples = FM_S*(current_staple_pop); #Not needed: + sum(exit_cashcrop_to_work));
+                maintenance_costs_to_cashcrops = FM_B*(current_cashcrop_pop);
+                total_maintenance_cost = maintenance_costs_for_workers + maintenance_costs_to_staples + maintenance_costs_to_cashcrops;
+
+                # Savings and debt
+                worker_bond_holding = s_fine[:,1] .*current_workers;
+                worker_bond_holding_sum = sum(worker_bond_holding);
+                staple_bond_holding = s_fine[:,1] .*current_staple;
+                staple_bond_holding_sum = sum(staple_bond_holding[staple_bond_holding .> 0.0]);
+                staple_debt_holding_sum = sum(staple_bond_holding[staple_bond_holding .< 0.0]);
+                cashcrop_bond_holding = s_fine[:,1] .*current_cashcrop;
+                cashcrop_bond_holding_sum = sum(cashcrop_bond_holding[cashcrop_bond_holding .> 0.0]);
+                cashcrop_debt_holding_sum = sum(cashcrop_bond_holding[cashcrop_bond_holding .< 0.0]);
+                asset_supply = worker_bond_holding_sum + (staple_bond_holding_sum + staple_debt_holding_sum ) + (cashcrop_bond_holding_sum + cashcrop_debt_holding_sum);
+
+
+                # Manufacturing firm:
+                labor_used = urban_labor_supply_sum - (total_maintenance_cost + total_entry_cost);
+
+                # Govt spending side as only the manufacturing firm pays taxes --- # KAROL FIXED THIS
+                input_staple= x_S_staple_sum + x_S_cashcrop_sum; # change current_staple to current_staple2 ? etc.
+                input_cashcrop= copy(x_B_cashcrop_sum);
+                foreign_demand_cash_crop = a_D*p_B^b_D#foreign_demand/p_B;
+                #println(input_staple)
+                #println(input_cashcrop)
+                Government_expenditure = balanced_share * p_x * (τ_S * input_staple + τ_B * input_cashcrop);
+                Import_value = p_x * ( input_staple + input_cashcrop);
+                Export_value = p_B * foreign_demand_cash_crop;
+                
+                #current_account = (Government_expenditure + Net_Foreign_Factor_Income - Import_value+Export_value)
+                current_account_residual = Export_value - Import_value;
+                #Net_Foreign_Factor_Income = -current_account_residual;
+                #foreign_supply_capital = -Net_Foreign_Factor_Income/R;
+                capital_used = copy(asset_supply) + foreign_supply_capital;
+                Net_Foreign_Factor_Income = R*(copy(asset_supply) - capital_used)
+                # if capital_used<0 || labor_used<0
+                #     println("ERROR? Capital_used: ", capital_used, " Labor_used: ", labor_used)
+                # end
+                #
+                # KLratio=α/(1-α)*((1+τ_W)*w)/r
+                # r_new = -δ + α*p_M * KLratio^(α-1) #(max(0.01,capital_used)/max(0.01,labor_used))^(α-1)
+                # w_new = (1 - α)/(1 + τ_W)*p_M* KLratio^α #(max(0.01,capital_used)/max(0.01,labor_used))^α # this is when we calculate wages paid by the manufacturing firm
+
+
+                if balanced_share>0.0
+                    τ_W_new = - balanced_share * p_x * (τ_S * input_staple + τ_B * input_cashcrop) / (labor_used * w);
+                end
+
+
+                K_L_ratio = maximum([capital_used./labor_used, tol]);
+                r_new = -δ + α*p_M *K_L_ratio^(α-1);
+                w_new = (1 - α)/(1 + τ_W)*p_M* K_L_ratio^α; # this is when we calculate wages paid by the manufacturing firm
+                #labor_demand=((1 - α)/(1 + τ_W)/w_new*p_M*capital_used^α)^(1/α);
+
+                prod_staple = q_S_staple_sum + q_S_cashcrop_sum;
+                prod_cashcrop = q_B_cashcrop_sum;
+                prod_manuf = sum(max(tol,capital_used).^α.*max(tol,labor_used).^(1-α));
+                #foreign_demand = p_x * ( input_staple + input_cashcrop);
+                
+                #p_M_new =
+                #τ_W*(labor_used * w)
+
+                        # Production -- KAROL ADDED THIS
+
+
+                #residual[1] = (cash_crop_cons + p_x/p_B*input_staple + p_x/p_B*input_cashcrop - prod_cashcrop)/(cash_crop_cons + p_x/p_B*input_staple + p_x/p_B*input_cashcrop + prod_cashcrop); # -- KAROL ADDED THIS
+                #residual[1] = 0#(cash_crop_cons + p_x*input_staple + p_x*input_cashcrop - prod_cashcrop)/(cash_crop_cons + p_x*input_staple + p_x*input_cashcrop + prod_cashcrop); # -- KAROL ADDED THIS
+                #residual[1] = (cash_crop_cons  - prod_cashcrop)/(cash_crop_cons + prod_cashcrop); # -- KAROL ADDED THIS
+                residual_goods[1] = (c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  - prod_cashcrop)/(
+                                    c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  + prod_cashcrop);
+                if current_cashcrop_pop <1e-3
+                    residual_goods[1] = 100.0;
+                end
+                #println(c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum)
+                #println(foreign_demand_cash_crop)
+                #println(prod_cashcrop)
+
+                residual_goods[2] = (c_M_worker_sum + c_M_staple_sum + c_M_cashcrop_sum - prod_manuf)/(c_M_worker_sum + c_M_staple_sum + c_M_cashcrop_sum + prod_manuf);
+
+                #residual[2] = (manuf_cons + input_staple + input_cashcrop - prod_manuf)/(manuf_cons + input_staple + input_cashcrop + prod_manuf); # -- KAROL ADDED THIS
+                residual_goods[3] = 0 #No longer needed for the calibration as the foreign_supply_capital offsets capital markets(r - r_new)/(r+r_new);
+                residual_goods[4] = 0;#(w - w_new)/(w+w_new);
+                if current_worker_pop <1e-3
+                    residual_goods[4] = -100.0;
+                end
+                #residual[4] = (labor_demand - labor_used)/(labor_demand + labor_used);
+                #staple_mkt_clr = (sum(c_current_S) + p_x*input_staple - prod_staple)/(sum(c_current_S) + prod_staple + p_x*input_staple) # -- KAROL ADDED THIS
+                #staple_mkt_clr = (sum(c_current_S) - prod_staple)/(sum(c_current_S) + prod_staple) # -- KAROL ADDED THIS
+                residual_goods[5] = (c_S_worker_sum + c_S_staple_sum + c_S_cashcrop_sum +
+                    transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum - prod_staple)/(
+                    c_S_worker_sum + c_S_staple_sum + c_S_cashcrop_sum +
+                        transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum + prod_staple);# This is the main residual, since other markets are tempered with
+                if prod_staple <1e-3
+                    residual_goods[5] = 100.0;
+                end
+
+
+                undernutritioned_workers = sum((c_S_W_fine[:, 1] .< cons_level_substinence) .* stay_workers
+                                               + (c_S_W_fine[:, 2] .< cons_level_substinence) .* exit_staple_to_work +
+                                               (c_S_W_fine[:, 3] .< cons_level_substinence) .* exit_cashcrop_to_work)
+                undernutritioned_staple_farmer = sum((c_S_S_fine[:, 1] .< cons_level_substinence) .* entrants_staple_from_workers +
+                                                     (c_S_S_fine[:, 2] .< cons_level_substinence) .* incumbents_staple +
+                                                     (c_S_S_fine[:, 3] .< cons_level_substinence) .* exit_cashcrop_to_staple)
+                undernutritioned_cashcrop_farmer = sum((c_S_B_fine[:, 1] .< cons_level_substinence) .* entrants_cashcrop_from_workers
+                                                       + (c_S_B_fine[:, 2] .< cons_level_substinence) .* entrants_from_staple_to_cashcrop +
+                                                       (c_S_B_fine[:, 3] .< cons_level_substinence) .* incumbents_cashcrop)
+
+                cttilde_new = undernutritioned_workers + undernutritioned_staple_farmer + undernutritioned_cashcrop_farmer
+
+                if balanced_share>0.0
+                    residual_goods[6] =  (τ_W - τ_W_new)/(τ_W + τ_W_new)
+
+                    residual_goods[7] = (cttilde_new - cttilde)/(cttilde_new+cttilde)
+                else
+                    residual_goods[6] = (cttilde_new - cttilde) / (cttilde_new + cttilde)
+                end
+
+               
+
+                # if current_staple_pop ==0
+                #     residual[5] = 100.0;
+                # end
+
+                rural_pop_only_staples_printable=(sum(entrants_cashcrop_from_workers.* (q_B_B_fine[:,1].==0.0)) + sum(incumbents_cashcrop.*(q_B_B_fine[:,3].==0.0))
+                + sum( entrants_from_staple_to_cashcrop.*(q_B_B_fine[:,2].==0.0)) + current_staple_pop);
+                rural_pop_only_Bashcrop_printable=(sum(entrants_cashcrop_from_workers.* (land_C_fine[:,1].==1.0)) + sum(incumbents_cashcrop.*(land_C_fine[:,3].==1.0))
+                + sum( entrants_from_staple_to_cashcrop.*(land_C_fine[:,2].==1.0)));
+                #println("Pops: Worker:",current_worker_pop," Staple:",current_staple_pop," Cash crop:",current_cashcrop_pop," Only producing staples", rural_pop_only_staples_printable
+                #," Only producing cashcrop", rural_pop_only_Bashcrop_printable)
             end
         end
-    end
-    # matcheck= zeros(400,12)
-    # matcheck[:,1:3]= future_occupation_fine_local
-    # matcheck[:,4:5] = s_fine
-    # matcheck[:,6:8] = cons_fine_local
-    #matcheck[:,6:8] = c_S_B_fine - q_S_B_fine
-    # Distribution of current occupations
-    current_distr_store = zeros(3 * ns_fine);
-
-    past_distr_store = zeros(ns_fine,3);
-
-    stay_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==1);
-    exit_staple_to_work = staple_past_dist.*(future_occupation_fine_local[:,2].==1);
-    exit_cashcrop_to_work = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==1);
-    current_workers = stay_workers + exit_staple_to_work + exit_cashcrop_to_work;
-    # Worker policy functions are easy:
-    c_S_W_fine[:,1] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-    c_S_W_fine[:,2] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-    c_S_W_fine[:,3] = (c̄_S .+ (1 + Q_S)^(-ϵ)*ψ_S.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-    c_B_W_fine[:,1] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-    c_B_W_fine[:,2] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-    c_B_W_fine[:,3] = (p_B^(-ϵ)*ψ_B.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-    c_M_W_fine[:,1] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,1].*P_W_fine.^ϵ);
-    c_M_W_fine[:,2] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,2].*P_W_fine.^ϵ);
-    c_M_W_fine[:,3] = (p_M^(-ϵ)*ψ_M.^ϵ.*cons_fine_local[:,3].*P_W_fine.^ϵ) ;
-
-    c_S_worker_sum = sum( c_S_W_fine[:,1].*stay_workers + c_S_W_fine[:,2].*exit_staple_to_work +
-    c_S_W_fine[:,3] .*exit_cashcrop_to_work );
-    c_B_worker_sum = sum(c_B_W_fine[:,1] .*stay_workers +c_B_W_fine[:,2] .*exit_staple_to_work +
-    c_B_W_fine[:,3] .*exit_cashcrop_to_work );
-    c_M_worker_sum = sum(c_M_W_fine[:,1] .*stay_workers +c_M_W_fine[:,2] .*exit_staple_to_work +
-    c_M_W_fine[:,3] .*exit_cashcrop_to_work );
-    urban_labor_supply_sum = sum(current_workers.*labor_prod_fine);
-    transaction_cost_worker_sum = c_S_worker_sum * Q_S;
-
-    entrants_staple_from_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==2);
-    incumbents_staple = staple_past_dist.*(future_occupation_fine_local[:,2].==2);
-    exit_cashcrop_to_staple = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==2);
-    current_staple = entrants_staple_from_workers + incumbents_staple + exit_cashcrop_to_staple;
-    # Staple policy function now depends on consumption, hence the decision is always different!
-
-
-    c_S_staple_sum = sum(c_S_S_fine[:,1] .*entrants_staple_from_workers + c_S_S_fine[:,2] .*incumbents_staple
-    + c_S_S_fine[:,3] .*exit_cashcrop_to_staple);
-    c_B_staple_sum = sum(c_B_S_fine[:,1] .*entrants_staple_from_workers + c_B_S_fine[:,2] .*incumbents_staple
-    + c_B_S_fine[:,3] .*exit_cashcrop_to_staple);
-    c_M_staple_sum = sum(c_M_S_fine[:,1] .*entrants_staple_from_workers + c_M_S_fine[:,2] .*incumbents_staple
-    + c_M_S_fine[:,3] .*exit_cashcrop_to_staple);
-    q_S_staple_sum = sum(q_S_S_fine[:,1] .*entrants_staple_from_workers + q_S_S_fine[:,2] .*incumbents_staple
-    + q_S_S_fine[:,3] .*exit_cashcrop_to_staple);
-    x_S_staple_sum = sum(x_S_S_fine[:,1] .*entrants_staple_from_workers + x_S_S_fine[:,2] .*incumbents_staple
-    + x_S_S_fine[:,3] .*exit_cashcrop_to_staple);
-
-    transaction_cost_staple_sum = Q_S * sum(max.(c_S_S_fine[:,1] - q_S_S_fine[:,1],0) .*entrants_staple_from_workers +
-        max.(c_S_S_fine[:,2] - q_S_S_fine[:,2],0) .*incumbents_staple +
-        max.(c_S_S_fine[:,3] - q_S_S_fine[:,3],0) .*exit_cashcrop_to_staple);
-
-    entrants_cashcrop_from_workers = worker_past_dist.*(future_occupation_fine_local[:,1].==3);
-    entrants_from_staple_to_cashcrop= staple_past_dist.*(future_occupation_fine_local[:,2].==3);
-    incumbents_cashcrop = cash_crop_past_dist.*(future_occupation_fine_local[:,3].==3);
-    current_cashcrop = entrants_cashcrop_from_workers + incumbents_cashcrop + entrants_from_staple_to_cashcrop;
-    # Cash crop producer policy functions now depends on consumption, hence the decision is always different!
-
-    c_S_cashcrop_sum = sum(c_S_B_fine[:,1] .*entrants_cashcrop_from_workers + c_S_B_fine[:,3] .*incumbents_cashcrop
-    + c_S_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    c_B_Cashcrop_sum = sum(c_B_B_fine[:,1] .*entrants_cashcrop_from_workers + c_B_B_fine[:,3] .*incumbents_cashcrop
-    + c_B_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    c_M_cashcrop_sum = sum(c_M_B_fine[:,1] .*entrants_cashcrop_from_workers + c_M_B_fine[:,3] .*incumbents_cashcrop
-    + c_M_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    q_S_cashcrop_sum = sum(q_S_B_fine[:,1] .*entrants_cashcrop_from_workers + q_S_B_fine[:,3] .*incumbents_cashcrop
-    + q_S_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    q_B_cashcrop_sum = sum(q_B_B_fine[:,1] .*entrants_cashcrop_from_workers + q_B_B_fine[:,3] .*incumbents_cashcrop
-    + q_B_B_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    x_S_cashcrop_sum = sum(x_SC_fine[:,1] .*entrants_cashcrop_from_workers + x_SC_fine[:,3] .*incumbents_cashcrop
-    + x_SC_fine[:,2] .*entrants_from_staple_to_cashcrop);
-    x_B_cashcrop_sum = sum(x_BC_fine[:,1] .*entrants_cashcrop_from_workers + x_BC_fine[:,3] .*incumbents_cashcrop
-    + x_BC_fine[:,2] .*entrants_from_staple_to_cashcrop);
-
-    transaction_cost_cashcrop_sum = Q_S * sum(max.(c_S_B_fine[:,1] - q_S_B_fine[:,1],0) .*entrants_cashcrop_from_workers +
-        max.(c_S_B_fine[:,2] - q_S_B_fine[:,2],0) .*entrants_from_staple_to_cashcrop +
-        max.(c_S_B_fine[:,3] - q_S_B_fine[:,3],0) .*incumbents_cashcrop);
-
-    current_distr_store[(ns_fine *0 + 1):(ns_fine *1)] = current_workers;
-    current_distr_store[(ns_fine *1 + 1):(ns_fine *2)] = current_staple;
-    current_distr_store[(ns_fine *2 + 1):(ns_fine *3)] = current_cashcrop;
-
-
-    past_distr_store[:,1]=stat_distr[(ns_fine *0 + 1):(ns_fine *1)];
-    past_distr_store[:,2]=stat_distr[(ns_fine *1 + 1):(ns_fine *2)];
-    past_distr_store[:,3]=stat_distr[(ns_fine *2 + 1):(ns_fine *3)];
-
-    current_worker_pop = sum(current_workers);
-    current_staple_pop = sum(current_staple);
-    current_cashcrop_pop = sum(current_cashcrop);
-    # Entry cost accounting - measured in labor, convert with wages later
-    entry_costs_to_workers =  F_W*(sum(exit_staple_to_work) + sum(exit_cashcrop_to_work));
-    entry_costs_to_staples = F_S*(sum(entrants_staple_from_workers)); #Not needed: + sum(exit_cashcrop_to_work));
-    entry_costs_to_cashcrops = F_B*(sum(entrants_cashcrop_from_workers) + sum(entrants_from_staple_to_cashcrop));
-    total_entry_cost = entry_costs_to_workers + entry_costs_to_staples + entry_costs_to_cashcrops;
-    # Maintenance cost accounting
-    maintenance_costs_for_workers =  FM_W*(current_worker_pop);
-    maintenance_costs_to_staples = FM_S*(current_staple_pop); #Not needed: + sum(exit_cashcrop_to_work));
-    maintenance_costs_to_cashcrops = FM_B*(current_cashcrop_pop);
-    total_maintenance_cost = maintenance_costs_for_workers + maintenance_costs_to_staples + maintenance_costs_to_cashcrops;
-
-    # Savings and debt
-    worker_bond_holding = s_fine[:,1] .*current_workers;
-    worker_bond_holding_sum = sum(worker_bond_holding);
-    staple_bond_holding = s_fine[:,1] .*current_staple;
-    staple_bond_holding_sum = sum(staple_bond_holding[staple_bond_holding .> 0.0]);
-    staple_debt_holding_sum = sum(staple_bond_holding[staple_bond_holding .< 0.0]);
-    cashcrop_bond_holding = s_fine[:,1] .*current_cashcrop;
-    cashcrop_bond_holding_sum = sum(cashcrop_bond_holding[cashcrop_bond_holding .> 0.0]);
-    cashcrop_debt_holding_sum = sum(cashcrop_bond_holding[cashcrop_bond_holding .< 0.0]);
-    asset_supply = worker_bond_holding_sum + (staple_bond_holding_sum + staple_debt_holding_sum ) + (cashcrop_bond_holding_sum + cashcrop_debt_holding_sum);
-
-
-    # Manufacturing firm:
-    labor_used = urban_labor_supply_sum - (total_maintenance_cost + total_entry_cost);
-
-    # Govt spending side as only the manufacturing firm pays taxes --- # KAROL FIXED THIS
-    input_staple= x_S_staple_sum + x_S_cashcrop_sum; # change current_staple to current_staple2 ? etc.
-    input_cashcrop= copy(x_B_cashcrop_sum);
-    foreign_demand_cash_crop = a_D*p_B^b_D#foreign_demand/p_B;
-    #println(input_staple)
-    #println(input_cashcrop)
-    Government_expenditure = balanced_share * p_x * (τ_S * input_staple + τ_B * input_cashcrop);
-    Import_value = p_x * ( input_staple + input_cashcrop);
-    Export_value = p_B * foreign_demand_cash_crop;
-    
-    #current_account = (Government_expenditure + Net_Foreign_Factor_Income - Import_value+Export_value)
-    
-    #Net_Foreign_Factor_Income = -current_account_residual;
-    #foreign_supply_capital = -Net_Foreign_Factor_Income/R;
-    capital_used = copy(asset_supply) + foreign_supply_capital;
-    Net_Foreign_Factor_Income = R*(copy(asset_supply) - capital_used)
-    current_account_residual = Export_value - Import_value + Net_Foreign_Factor_Income;
-    # if capital_used<0 || labor_used<0
-    #     println("ERROR? Capital_used: ", capital_used, " Labor_used: ", labor_used)
-    # end
-    #
-    # KLratio=α/(1-α)*((1+τ_W)*w)/r
-    # r_new = -δ + α*p_M * KLratio^(α-1) #(max(0.01,capital_used)/max(0.01,labor_used))^(α-1)
-    # w_new = (1 - α)/(1 + τ_W)*p_M* KLratio^α #(max(0.01,capital_used)/max(0.01,labor_used))^α # this is when we calculate wages paid by the manufacturing firm
-
-
-    if balanced_share>0.0
-        τ_W_new = - balanced_share * p_x * (τ_S * input_staple + τ_B * input_cashcrop) / (labor_used * w);
-    end
-
-
-    K_L_ratio = maximum([capital_used./labor_used, tol]);
-    r_new = -δ + α*p_M *K_L_ratio^(α-1);
-    w_new = (1 - α)/(1 + τ_W)*p_M* K_L_ratio^α; # this is when we calculate wages paid by the manufacturing firm
-    #labor_demand=((1 - α)/(1 + τ_W)/w_new*p_M*capital_used^α)^(1/α);
-
-    prod_staple = q_S_staple_sum + q_S_cashcrop_sum;
-    prod_cashcrop = q_B_cashcrop_sum;
-    prod_manuf = sum(max(tol,capital_used).^α.*max(tol,labor_used).^(1-α));
-    #foreign_demand = p_x * ( input_staple + input_cashcrop);
-    
-    #p_M_new =
-    #τ_W*(labor_used * w)
-
-            # Production -- KAROL ADDED THIS
-
-    residual_goods = zeros(6);
-    #residual[1] = (cash_crop_cons + p_x/p_B*input_staple + p_x/p_B*input_cashcrop - prod_cashcrop)/(cash_crop_cons + p_x/p_B*input_staple + p_x/p_B*input_cashcrop + prod_cashcrop); # -- KAROL ADDED THIS
-    #residual[1] = 0#(cash_crop_cons + p_x*input_staple + p_x*input_cashcrop - prod_cashcrop)/(cash_crop_cons + p_x*input_staple + p_x*input_cashcrop + prod_cashcrop); # -- KAROL ADDED THIS
-    #residual[1] = (cash_crop_cons  - prod_cashcrop)/(cash_crop_cons + prod_cashcrop); # -- KAROL ADDED THIS
-    residual_goods[1] = (c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  - prod_cashcrop)/(
-                        c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum+ foreign_demand_cash_crop  + prod_cashcrop);
-    if current_cashcrop_pop <1e-3
-        residual_goods[1] = 100.0;
-    end
-    #println(c_B_worker_sum + c_B_staple_sum + c_B_Cashcrop_sum)
-    #println(foreign_demand_cash_crop)
-    #println(prod_cashcrop)
-
-    residual_goods[2] = (c_M_worker_sum + c_M_staple_sum + c_M_cashcrop_sum - prod_manuf)/(c_M_worker_sum + c_M_staple_sum + c_M_cashcrop_sum + prod_manuf);
-
-    #residual[2] = (manuf_cons + input_staple + input_cashcrop - prod_manuf)/(manuf_cons + input_staple + input_cashcrop + prod_manuf); # -- KAROL ADDED THIS
-    residual_goods[3] = 0 #No longer needed for the calibration as the foreign_supply_capital offsets capital markets(r - r_new)/(r+r_new);
-    residual_goods[4] = 0;#(w - w_new)/(w+w_new);
-    if current_worker_pop <1e-3
-        residual_goods[4] = -100.0;
-    end
-    #residual[4] = (labor_demand - labor_used)/(labor_demand + labor_used);
-    #staple_mkt_clr = (sum(c_current_S) + p_x*input_staple - prod_staple)/(sum(c_current_S) + prod_staple + p_x*input_staple) # -- KAROL ADDED THIS
-    #staple_mkt_clr = (sum(c_current_S) - prod_staple)/(sum(c_current_S) + prod_staple) # -- KAROL ADDED THIS
-    residual_goods[5] = (c_S_worker_sum + c_S_staple_sum + c_S_cashcrop_sum +
-        transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum - prod_staple)/(
-        c_S_worker_sum + c_S_staple_sum + c_S_cashcrop_sum +
-            transaction_cost_worker_sum + transaction_cost_staple_sum + transaction_cost_cashcrop_sum + prod_staple);# This is the main residual, since other markets are tempered with
-    if prod_staple <1e-3
-        residual_goods[5] = 100.0;
-    end
-
-    if balanced_share>0.0
-        residual_goods[6] = (τ_W - τ_W_new)/(τ_W + τ_W_new)
-    end
+    #end
 
     # if current_staple_pop ==0
     #     residual[5] = 100.0;
@@ -1731,4 +1832,5 @@ x_S_mat_3c_RCT,x_B_mat_3c_RCT,land_B_mat_3c_RCT,λ_2_mat_3c_RCT,TC_mat_3c_RCT);
         MPX_mean_log, MPX_mean_staples_S_log,MPX_mean_cashcrop_log
         , APland_mean_log,APland_mean_cashcrop_log, APland_mean_staples_S_log,var_APland,var_APland_cashcrop,var_APland_staples_S,
         c_S_W_fine,c_B_W_fine,c_M_W_fine,c_S_S_fine,c_B_S_fine,c_M_S_fine,c_S_B_fine,c_B_B_fine,c_M_B_fine)
+end
 end

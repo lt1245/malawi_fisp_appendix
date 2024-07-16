@@ -909,8 +909,9 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 # Now to the actual RCT evidence    p10_index_cons identifies the group we care about
                 # Changed on 9/11/2022 to those who choose to live in rural
                 # This questionable.
+                p100_index_cons_rural = findfirst(cumu_consumption_distr_rural .> 0.5)#9999999999)
                 RCT_factor = 0.25
-                cons_rural_p10_level = consumption_sorted_rural[p10_index_cons_rural]
+                cons_rural_p10_level = consumption_sorted_rural[p100_index_cons_rural]
                 s_fine_RCT_workers = copy(s_fine);
                 s_fine_RCT_staples = copy(s_fine);
                 s_fine_RCT_cashcrop = copy(s_fine);
@@ -925,9 +926,18 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 # s_fine_RCT_workers[:,1] = s_fine_RCT_workers[:,1] + P_W*RCT_factor * treated_past_worker.*consumption_policy[1:ns_fine];
                 # s_fine_RCT_staples[:,1] = s_fine_RCT_staples[:,1] + P_W*RCT_factor * treated_past_staples.*consumption_policy[(ns_fine+1):(2*ns_fine)];
                 # s_fine_RCT_cashcrop[:,1] = s_fine_RCT_cashcrop[:,1] + P_W*RCT_factor * treated_past_cashcrop.*consumption_policy[(2*ns_fine+1):(3*ns_fine)];
-                s_fine_RCT_workers[:,1] = s_fine_RCT_workers[:,1] .+ treated_past_worker.*avg_cons_factor;
-                s_fine_RCT_staples[:,1] = s_fine_RCT_staples[:,1] .+ treated_past_staples.*avg_cons_factor;
-                s_fine_RCT_cashcrop[:,1] = s_fine_RCT_cashcrop[:,1] .+ treated_past_cashcrop.*avg_cons_factor;
+
+                avg_income=avg_inc_rural #+ (1-L)*avg_inc_rural #check moments(2)
+
+                # money was disbursed july 2019 - feb 2020. 500 usd. mean income 2010 our sample is 306 in rural (280 panel; 1011 urban)
+                # 2010 CPI https://data.worldbank.org/indicator/FP.CPI.TOTL?locations=MW 100 , 2019 418 and 2020 454. 
+                # exchange rate: 2010 - https://www.exchangerates.org.uk/USD-MWK-15_03_2010-exchange-rate-history.html  152
+                #                2020 - 740 at 01.01.2020. 750 at 01.07.2019.
+                # Thus transfer was worth 370 000 MWK in 2020 and income was 46 512 MWK in 2010. 2020 transfer adjusted for CPI is 88 000. in July 2019 89 712
+
+                s_fine_RCT_workers[:,1] = s_fine_RCT_workers[:,1] .+ treated_past_worker.*avg_income*1.93;
+                s_fine_RCT_staples[:,1] = s_fine_RCT_staples[:,1] .+ treated_past_staples.*avg_income*1.93;
+                    s_fine_RCT_cashcrop[:, 1] = s_fine_RCT_cashcrop[:, 1] .+ treated_past_cashcrop .* avg_income * 1.93
                 # Simplification is needed unfortunately - assume the transfer cannot be conditional on your previous occupation choice, therefore you get the maximum
                 # consumption, irrespective of your occupation (not a far fetched theory). As we dont care about those who are workers,
                 #the main difference is the cashcrop vs. staples are treated equal
@@ -1185,6 +1195,11 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
 
                 #prod_value_improvement = (value_cashcrop_first_moment_RCT - value_cashcrop_first_moment)/ value_cashcrop_std;
                 prod_value_improvement = (value_cashcrop_first_moment_RCT)/value_cashcrop_first_moment - 1;
+
+                    input_quant_first_moment = x_S_staple_sum_only_treated + x_S_cashcrop_sum_only_treated + x_B_cashcrop_sum_only_treated
+                    input_quant_first_moment_RCT = x_S_staple_sum_only_treated_RCT + x_S_cashcrop_sum_only_treated_RCT + x_B_cashcrop_sum_only_treated_RCT
+
+                    input_quant_improvement = (input_quant_first_moment_RCT) / input_quant_first_moment - 1
 
                 if iszero(value_cashcrop_first_moment)==0
                     residual[8] = 0;#prod_value_improvement - RCT_moment1_value;

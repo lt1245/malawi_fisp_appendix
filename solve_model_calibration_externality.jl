@@ -1,4 +1,6 @@
-function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parameter_type,out::Int64,moments::Vector{Float64},balanced_share::Float64,foreign_supply_capital::Float64)
+function solve_model_calibration_externality(prices::Vector{Float64}, parameters_tmp::Parameter_type, out::Int64, moments::Vector{Float64}, balanced_share::Float64, foreign_supply_capital::Float64, cons_level_substinence::Float64, epsilon_u::Float64, epsilon_r::Float64)
+
+    ctilde = copy(cons_level_substinence)
 
     if size(prices,1)<3 && balanced_share>0.0 
         error("Prices input wrong sized")
@@ -73,12 +75,20 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
         # var_log_wealth_urban=moments[29];
         exitflag = 0;
 
+        if balanced_share>0.0
+            cttilde=prices[4]
+        else
+            cttilde=prices[3]
+        end
+
         # Initialization
         (δ,ζ,ρ,α,σ,β,ϵ,ψ_S,ψ_B,ψ_M,ϕ_S,ϕ_B,c̄_S,F_W,F_S,F_B,FM_W,FM_S,FM_B,Q_S,p_x,τ_S,τ_B,a_D,b_D,K_a,K_b,γ,A_W,
         ρ_S,ρ_SW,σ_S,ρ_W,σ_W,n,n_fine,agrid,agrid_fine,a_min,a_max,spliorder,fspace_a,fspace_a_fine,fspace_C_fine,C_grid_fine_no,C_grid_fine,s,ns,
-        s_fine,ns_fine,z,z_W,Phi_z,Phi_z_fine,Phi,Phi_aug,P_kron,P_kron1,P_kron_fine,κ) = local_parameters(parameters_tmp);
+            s_fine, ns_fine, z, z_W, Phi_z, Phi_z_fine, Phi, Phi_aug, P_kron, P_kron1, P_kron_fine, κ) = local_parameters_ext(parameters_tmp, epsilon_r,cttilde, ctilde)
 
         p_B,p_M,R,r,w,τ_W= price_reshaper_fixed_r(prices,δ,ϵ,ψ_S,ψ_B,ψ_M,p_x,τ_S,τ_B,α,balanced_share,r);
+
+
 
         #println("Trying p_B: ", p_B, " p_M: ", p_M, " r: ", r, " w: ", w)
 
@@ -88,8 +98,8 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                 c_M_mat,x_S_mat,x_B_mat,q_S_mat,q_B_mat,land_B_mat, λ_2_mat,P_B_mat,Y_B_mat,feasibility_mat,C_max_mat,C_min_mat,q_S_staples,c_S_staples,c_B_staples,
                 c_M_staples,P_S_staples,x_S_staples,λ_2_S_staples,unfeasible_mat,Y_S_potential,C_max_unconstrained ,C_max_constrained,C_min_unconstrained,
                 C_min_constrained,TC_mat,C_max_staple,C_min_staple,C_max_staple_constrained,C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,
-                q_S_c3_constrained,c_S_c3_constrained,cbar_violated, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c) = income_creator(s,ns,z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,
-                    c̄_S,a_min,a_max,γ,n,κ,Q_S,ϵ,ψ_S,ψ_B,ψ_M,C_grid_fine,fspace_C_fine,agrid);
+                q_S_c3_constrained,c_S_c3_constrained,cbar_violated, x_S_mat_3c,x_B_mat_3c,land_B_mat_3c,λ_2_mat_3c,TC_mat_3c) = income_creator_ext(s,ns,z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,
+            c̄_S, a_min, a_max, γ, n, κ, Q_S, ϵ, ψ_S, ψ_B, ψ_M, C_grid_fine, fspace_C_fine, agrid, epsilon_u, cttilde, ctilde)
                 #println("cbar: ", cbar_violated)
 
         #if cbar_violated==0
@@ -151,12 +161,12 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
         #end
         if balanced_share>0.0
             residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
-            r^2*100 + 1.00,w^2*100 + 1.00,100,τ_W^2*100 + 1.00]; # Placeholder if everything is fine, this is overwritten
-            tmp_var=ones(6);
+            r^2*100 + 1.00,w^2*100 + 1.00,100,τ_W^2*100 + 1.00,ctilde^2*100 + 1.00]; # Placeholder if everything is fine, this is overwritten
+            tmp_var=ones(7);
         else
             residual_goods = [p_B^2*100 + 1.00,p_M^2*100 + 1.00,
-            r^2*100 + 1.00,w^2*100 + 1.00,100]; # Placeholder if everything is fine, this is overwritten
-            tmp_var=ones(5);
+                r^2 * 100 + 1.00, w^2 * 100 + 1.00, 100, ctilde^2 * 100 + 1.00] # Placeholder if everything is fine, this is overwritten
+            tmp_var=ones(6);
         end
 
         if exitflag==4
@@ -173,10 +183,10 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                     c_M_mat_fine,x_S_mat_fine,x_B_mat_fine,q_S_mat_fine,q_B_mat_fine,land_B_mat_fine, λ_2_mat_fine,P_B_mat_fine,Y_B_mat_fine,feasibility_mat_fine,C_max_mat_fine,
                     C_min_mat_fine,q_S_staples_fine,c_S_staples_fine,c_B_staples_fine,c_M_staples_fine,P_S_staples_fine,x_S_staples_fine,λ_2_S_staples_fine,unfeasible_mat_fine,
                     Y_S_potential_fine,TC_mat_fine,C_max_staple_fine,C_min_staple_fine,C_max_staple_constrained_fine,
-                    C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine, x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine) =  income_creator_no_approx(s_fine,ns_fine,
+                    C_min_staple_constrained_fine,TC_S_c3_constrained_fine,x_S_c3_constrained_fine,q_S_c3_constrained_fine,c_S_c3_constrained_fine, x_S_mat_3c_fine,x_B_mat_3c_fine,land_B_mat_3c_fine,λ_2_mat_3c_fine,TC_mat_3c_fine) =  income_creator_no_approx_ext(s_fine,ns_fine,
                     z,z_W,ϕ_S,ζ,τ_S,p_x,p_B,p_M,ϕ_B,τ_B,ρ,w,r,c̄_S,a_min,a_max,γ,n_fine,κ,Q_S,ϵ,ψ_S,ψ_B,ψ_M,coeff_λ_2_cashcrop_residual_unconstrained,coeff_λ_2_cashcrop_residual_constrained,
                     C_max_unconstrained ,C_max_constrained,C_min_unconstrained,C_min_constrained, coeff_λ_2_s,C_grid_fine,fspace_C_fine,C_max_staple,C_min_staple,C_max_staple_constrained,
-                C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained);
+                C_min_staple_constrained,TC_S_c3_constrained,x_S_c3_constrained,q_S_c3_constrained,c_S_c3_constrained, epsilon_u, cttilde, ctilde);
 
 
             min_C_applied_fine,max_C_applied_fine = bounds_consumption(P_W_fine,Y_W_fine,s_fine,r,ρ,w,
@@ -491,9 +501,28 @@ function solve_model_calibration2(prices::Vector{Float64},parameters_tmp::Parame
                     residual_goods[5] = 100.0;
                 end
 
+
+                undernutritioned_workers = sum((c_S_W_fine[:, 1] .< cons_level_substinence) .* stay_workers
+                                               + (c_S_W_fine[:, 2] .< cons_level_substinence) .* exit_staple_to_work +
+                                               (c_S_W_fine[:, 3] .< cons_level_substinence) .* exit_cashcrop_to_work)
+                undernutritioned_staple_farmer = sum((c_S_S_fine[:, 1] .< cons_level_substinence) .* entrants_staple_from_workers +
+                                                     (c_S_S_fine[:, 2] .< cons_level_substinence) .* incumbents_staple +
+                                                     (c_S_S_fine[:, 3] .< cons_level_substinence) .* exit_cashcrop_to_staple)
+                undernutritioned_cashcrop_farmer = sum((c_S_B_fine[:, 1] .< cons_level_substinence) .* entrants_cashcrop_from_workers
+                                                       + (c_S_B_fine[:, 2] .< cons_level_substinence) .* entrants_from_staple_to_cashcrop +
+                                                       (c_S_B_fine[:, 3] .< cons_level_substinence) .* incumbents_cashcrop)
+
+                cttilde_new = undernutritioned_workers + undernutritioned_staple_farmer + undernutritioned_cashcrop_farmer
+
                 if balanced_share>0.0
                     residual_goods[6] =  (τ_W - τ_W_new)/(τ_W + τ_W_new)
+
+                    residual_goods[7] = (cttilde_new - cttilde)/(cttilde_new+cttilde)
+                else
+                    residual_goods[6] = (cttilde_new - cttilde) / (cttilde_new + cttilde)
                 end
+
+               
 
                 # if current_staple_pop ==0
                 #     residual[5] = 100.0;
